@@ -1,0 +1,16 @@
+node_modules
+dist
+.git
+.env*
+!.env.example
+*.log
+coverage
+**/*.db*
+**/*.sqlite*
+**/*.pem
+**/*.key
+.venv
+__pycache__
+*.tsbuildinfo
+build
+**/*.sqlite3*

@@ -1,0 +1,62 @@
+.site-header { background: #fff; border-bottom: 2px solid var(--gold); }
+.site-header .header-content { max-width: none; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 24px; padding-block: 20px; }
+.brand { font-family: 'Cinzel', Georgia, serif; color: var(--blue); font-size: 34px; font-weight: 700; line-height: 1.2; }
+.brand-lockup { min-width: 0; }
+.brand-subtitle { max-width: 30ch; margin-top: 4px; font-size: 14px; line-height: 1.4; }
+.auth-actions { display: flex; justify-self: end; gap: 8px; }
+
+.site-header nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.site-header nav button, .auth-actions button {
+  background: #fff;
+  color: var(--blue);
+  border: 0;
+  border-radius: 4px;
+  min-height: 44px;
+  padding: 8px 12px;
+}
+.site-header nav button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--dark-gray);
+}
+.site-header nav button::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--blue);
+  opacity: 0;
+}
+.site-header nav button:hover, .site-header nav button[aria-current] { color: var(--blue); }
+.site-header nav button[aria-current]::before { opacity: 1; }
+.auth-actions button:hover {
+  color: var(--blue);
+  text-decoration: underline;
+  text-underline-offset: 6px;
+}
+.auth-actions button[aria-current] {
+  color: var(--blue);
+  text-decoration: underline;
+  text-underline-offset: 6px;
+  text-decoration-thickness: 2px;
+}
+.auth-actions .signup-button,
+.auth-actions .signup-button:hover,
+.auth-actions .signup-button[aria-current] { background: var(--blue); color: #fff; }
+
+@media (max-width: 960px) {
+  .site-header .header-content { grid-template-columns: 1fr auto; gap: 12px; padding-block: 16px; }
+  .site-header nav { grid-column: 1 / -1; grid-row: 2; }
+  .auth-actions { grid-column: 2; grid-row: 1; }
+}
+
+@media (max-width: 560px) {
+  .brand { font-size: 28px; }
+  .site-header .header-content { column-gap: 8px; }
+  .auth-actions { gap: 0; }
+  .auth-actions button { padding-inline: 10px; }
+  .site-header nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 8px; }
+}

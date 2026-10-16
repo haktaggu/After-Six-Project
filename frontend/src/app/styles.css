@@ -1,0 +1,48 @@
+/* Cinzel from Google Fonts, licensed under the SIL Open Font License. */
+@font-face {
+  font-family: 'Cinzel';
+  src: url('../assets/fonts/cinzel-latin/cinzel-latin-700.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+/* Albert Sans from Google Fonts, licensed under the SIL Open Font License. */
+@font-face {
+  font-family: 'Albert Sans';
+  src: url('../assets/fonts/albert-sans/AlbertSans-Variable.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  font-family: 'Albert Sans', Arial, Helvetica, sans-serif;
+  font-size: 18px;
+  color: #333;
+  background: #fff;
+  font-synthesis: none;
+  line-height: 1.5;
+  /* SJSU web palette*/
+  --blue: #0055a2;
+  --gold: #e5a823;
+  --gray: #939597;
+  --light-gray: #d2d2d2;
+  --dark-gray: #666;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+::selection { background: var(--blue); color: #fff; }
+button { font: inherit; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+button:disabled { cursor: default; opacity: .65; }
+
+.shell { max-width: 1100px; padding-inline: 24px; }
+main { padding-block: 24px; }
+h1 { font-size: 26px; line-height: 1.25; margin: 0 0 12px; }
+p { max-width: 70ch; color: var(--dark-gray); margin: 0; }
+
+@media (max-width: 560px) {
+  .shell { padding-inline: 16px; }
+}

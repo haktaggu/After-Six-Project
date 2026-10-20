@@ -1,6 +1,8 @@
 services:
   backend:
     build: ./backend
+    env_file:
+      - ./backend/.env
     ports:
       - "8000:8000"
     environment:
@@ -15,6 +17,22 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
+  worker:
+    build: ./backend
+    command: ["python", "-m", "app.jobs.runner"]
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_PATH: /data/oursjsu.db
+    volumes:
+      - ./backend:/app
+      - sqlite_data:/data
+    depends_on:
+      backend:
+        condition: service_healthy
   frontend:
     build: ./frontend
     ports:

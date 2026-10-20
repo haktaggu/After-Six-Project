@@ -1,4 +1,3 @@
-/** All browser requests use the Vite /api proxy. */
 export async function checkHealth(signal?: AbortSignal): Promise<void> {
   const response = await fetch('/api/health', { signal })
   if (!response.ok) throw new Error('API unavailable')

@@ -1,13 +1,17 @@
 import { navigationPages } from '../app/navigation'
 import type { Page } from '../app/navigation'
+import type { User } from '../shared/api/types'
 import './Header.css'
 
 type HeaderProps = {
   selectedPage: Page
   onNavigate: (page: Page) => void
+  user?: User
+  onSignOut?: () => void
+  signingOut?: boolean
 }
 
-export default function Header({ selectedPage, onNavigate }: HeaderProps) {
+export default function Header({ selectedPage, onNavigate, user, onSignOut, signingOut = false }: HeaderProps) {
   return (
     <header className="site-header">
       <div className="shell header-content">
@@ -17,12 +21,15 @@ export default function Header({ selectedPage, onNavigate }: HeaderProps) {
         </div>
         <nav aria-label="Main navigation">
           {navigationPages.map(name => (
-            <button key={name} type="button" aria-current={selectedPage === name ? 'page' : undefined} onClick={() => onNavigate(name)}>{name}</button>
+            <button key={name} type="button" disabled={!user || signingOut} aria-current={selectedPage === name ? 'page' : undefined} onClick={() => onNavigate(name)}>{name}</button>
           ))}
         </nav>
         <div className="auth-actions">
-          <button className="signup-button" type="button" aria-current={selectedPage === 'SignUp' ? 'page' : undefined} onClick={() => onNavigate('SignUp')}>Sign up</button>
-          <button type="button" aria-current={selectedPage === 'Login' ? 'page' : undefined} onClick={() => onNavigate('Login')}>Login</button>
+          {user ? (
+            <button type="button" disabled={signingOut || !onSignOut} onClick={onSignOut}>{signingOut ? 'Logging out…' : 'Logout'}</button>
+          ) : (
+            <button type="button" disabled aria-current={selectedPage === 'Login' ? 'page' : undefined}>Sign in</button>
+          )}
         </div>
       </div>
     </header>

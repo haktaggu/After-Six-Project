@@ -1,0 +1,20 @@
+{
+  "major_code": "CMPE",
+  "title": "Computer Engineering",
+  "degree_type": "BS",
+  "profile": {"standing": "junior", "gpa": 3.2, "earned_units": 60},
+  "description": "Demo subset of the Computer Engineering BS. Semester groups follow the department's Fall 2024 chart; this is not a complete degree audit. Course details and prerequisite rules come from the imported catalog.",
+  "sources": [
+    "https://www.sjsu.edu/cmpe/undergraduate_programs/bscmpe/index.php",
+    "https://www.sjsu.edu/cmpe/docs/bs-cmpe/fall_2024_BSCMPE_prereq_chart.pdf"
+  ],
+  "courses": [
+    {"course_id": "MATH-30", "term_order": 1, "initial_status": "completed", "initial_grade": "B+"},
+    {"course_id": "MATH-42", "term_order": 1, "initial_status": "completed", "initial_grade": "A-"},
+    {"course_id": "CMPE-30", "term_order": 3, "initial_status": "completed", "initial_grade": "B"},
+    {"course_id": "CMPE-50", "term_order": 5, "initial_status": "in_progress", "initial_grade": null},
+    {"course_id": "CMPE-126", "term_order": 6, "initial_status": "planned", "initial_grade": null},
+    {"course_id": "CMPE-130", "term_order": 8, "initial_status": null, "initial_grade": null},
+    {"course_id": "CMPE-131", "term_order": 8, "initial_status": null, "initial_grade": null}
+  ]
+}

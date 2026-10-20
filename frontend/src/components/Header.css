@@ -43,10 +43,6 @@
   text-underline-offset: 6px;
   text-decoration-thickness: 2px;
 }
-.auth-actions .signup-button,
-.auth-actions .signup-button:hover,
-.auth-actions .signup-button[aria-current] { background: var(--blue); color: #fff; }
-
 @media (max-width: 960px) {
   .site-header .header-content { grid-template-columns: 1fr auto; gap: 12px; padding-block: 16px; }
   .site-header nav { grid-column: 1 / -1; grid-row: 2; }

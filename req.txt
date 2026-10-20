@@ -1,8 +1,0 @@
-fastapi
-uvicorn
-pydantic
-python-dotenv
-ibm-watsonx-ai
-ibm-watson
-ibm-cloud-sdk-core
-python-multipart

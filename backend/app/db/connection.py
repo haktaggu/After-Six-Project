@@ -1,4 +1,3 @@
-"""SQLite initialization and connection helpers. No sample data is loaded here."""
 from contextlib import closing
 import os
 from pathlib import Path
@@ -10,7 +9,6 @@ def database_path() -> Path:
 
 
 def connect(path: Path) -> sqlite3.Connection:
-    # Require an existing database; health checks must not create missing files.
     conn = sqlite3.connect(path.resolve().as_uri() + "?mode=rw", uri=True, timeout=5)
     conn.execute("PRAGMA foreign_keys = ON")
     return conn

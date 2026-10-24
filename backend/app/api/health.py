@@ -1,4 +1,3 @@
-"""Database-aware health endpoint."""
 import sqlite3
 
 from fastapi import APIRouter, HTTPException, Request

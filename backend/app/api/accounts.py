@@ -9,18 +9,15 @@ from app.features import auth, profiles
 
 router = APIRouter(prefix="/api")
 
-# - COOKIE_SECURE=true for HTTPS; false for local HTTP.
 def cookie_secure() -> bool:
     return os.environ.get("COOKIE_SECURE", "false").lower() == "true"
 
-# - Return {csrf_token: str}; set the same token in an HttpOnly cookie.
 @router.get("/auth/csrf", response_model=CsrfResponse)
 def csrf(response: Response) -> CsrfResponse:
     token = auth.issue_csrf_token()
     response.set_cookie(CSRF_COOKIE, token, httponly=True, secure=cookie_secure(), samesite="lax", max_age=28800, path="/")
     return CsrfResponse(csrf_token=token)
 
-# - Authenticate the seeded student; return SessionResponse and an HttpOnly session cookie.
 @router.post("/auth/login", response_model=SessionResponse, dependencies=[Depends(require_csrf)])
 def login(body: LoginRequest, db: DatabaseDep, response: Response) -> SessionResponse:
     user = auth.authenticate_user(db, body)
@@ -40,24 +37,18 @@ def logout(request: Request, db: DatabaseDep, student: StudentDep) -> Response:
     response.delete_cookie(CSRF_COOKIE, path="/", secure=cookie_secure(), httponly=True, samesite="lax")
     return response
 
-# - ProfileResponse is {user: User, profile: {major_code,standing,gpa,earned_units}}.
 @router.get("/me", response_model=ProfileResponse)
 def profile(db: DatabaseDep, student: StudentDep) -> ProfileResponse:
     return profiles.get_profile(db, student)
 
-# - Supply major_code,standing,gpa,earned_units together; nullable fields can be cleared.
-# - A non-null major_code must name an existing major. Account name/email stay read-only.
 @router.patch("/me", response_model=ProfileResponse, dependencies=[Depends(require_csrf)])
 def patch_profile(body: ProfileUpdate, db: DatabaseDep, student: StudentDep) -> ProfileResponse:
     return profiles.update_profile(db, student, body)
 
-# - Sort by course_id. Page contains items, total, limit and offset.
 @router.get("/me/course-records", response_model=Page[CourseRecord])
 def course_records(db: DatabaseDep, student: StudentDep, query: Annotated[PaginationQuery, Query()]) -> Page[CourseRecord]:
     return profiles.list_course_records(db, student, query.limit, query.offset)
 
-# - Body is {status: completed/in_progress/planned, grade: Grade | None, term: str | None}.
-# - Return 201 when created and 200 when updated.
 @router.put("/me/course-records/{course_id}", response_model=CourseRecord, responses={201: {"description": "Created"}}, dependencies=[Depends(require_csrf)])
 def put_record(course_id: str, body: CourseRecordInput, db: DatabaseDep, student: StudentDep, response: Response) -> CourseRecord:
     result = profiles.put_course_record(db, student, course_id, body)

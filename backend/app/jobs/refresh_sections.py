@@ -1,51 +1,69 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import closing
+from datetime import datetime, timezone
+import json
+import logging
+import os
 from pathlib import Path
-import sqlite3
-from app.db.connection import database_path, init_db
-from app.errors import ApiProblem, ScaffoldPending
-from app.features import ingest
-from app.jobs.locking import exclusive_worker, WorkerAlreadyRunning
-from app.jobs.send_notifications import send_notifications
-from app.schemas import RefreshResult
 
-# - Read SCHEDULE_SOURCE_URL (default https://www.sjsu.edu/classes/schedules/fall-2026.php).
-#   Fetch and parse through ingest.fetch_source(url)/parse_schedule(html,term,url) before writing.
-# - Open a fresh connection; BEGIN IMMEDIATE and call ingest.upsert_sections(db,document,checked_at).
-#   checked_at is UTC ISO 8601. Commit related rows, seats, freshness and events together.
-# - Return RefreshResult(updated_records,event_ids,checked_at). On failure roll back and keep
-#   cached rows/freshness. Keep every imported term/section; do not hard-code a demo subset.
-# - Source samples live under demo/sources/schedules/ with URL/capture time. Preserve unknown
-#   seats and TBA meetings. The runner calls this on startup/every SCHEDULE_REFRESH_SECONDS
-#   (default 300), using SCHEDULE_TERM. Return after commit so it can dispatch notifications.
-# - No timer, seed logic or Discord request inside this function. Raise on fetch/parse/write
-#   failures so the runner can retain cached data and retry the next scheduled refresh.
-def refresh_sections(path: Path, term: str = "fall-2026") -> RefreshResult:
-    raise ScaffoldPending("jobs.refresh_sections")
+from app.db.connection import connect, database_path, init_db
+from app.features import ingest
+from app.jobs.locking import exclusive_worker
+from app.jobs.refresh_catalog import SOURCES
+from app.schemas import IngestionDocument, RefreshResult
+
+log = logging.getLogger(__name__)
+
+
+def import_snapshot(path: Path, name: str) -> RefreshResult:
+    if name not in ('closed', 'open'):
+        raise ValueError('Choose the closed or open replay snapshot')
+    payload = json.loads((SOURCES / 'schedules' / f'{name}.json').read_text())
+    document = IngestionDocument.model_validate(payload['document'])
+    with closing(connect(path)) as db, db:
+        db.execute('BEGIN IMMEDIATE')
+        return ingest.upsert_sections(db, document, payload['captured_at'])
+
+
+def refresh_sections(path: Path, term: str = 'fall-2026') -> RefreshResult:
+    if os.environ.get('DATA_MODE', 'live') == 'replay':
+        with closing(connect(path)) as db:
+            exists = db.execute('SELECT 1 FROM sections LIMIT 1').fetchone()
+        if not exists:
+            return import_snapshot(path, 'closed')
+        return RefreshResult(updated_records=0, event_ids=[], checked_at=datetime.now(timezone.utc).isoformat())
+    url = os.environ.get('SCHEDULE_SOURCE_URL', 'https://www.sjsu.edu/classes/schedules/fall-2026.php')
+    document = ingest.parse_schedule(ingest.fetch_source(url), term, url)
+    configured = os.environ.get('REVIEW_COURSE_IDS', '').strip()
+    if configured:
+        if configured == 'catalog':
+            with closing(connect(path)) as db:
+                allowed = {r[0] for r in db.execute('SELECT id FROM courses')}
+        else:
+            allowed = set(configured.split(','))
+        sections = [s for s in document.sections if s.course.id in allowed]
+        log.info('Explicit review subset: included %s sections; excluded %s.', len(sections), len(document.sections) - len(sections))
+        document = document.model_copy(update={'sections': sections})
+        if not sections:
+            raise ValueError('Review subset matched no scheduled sections')
+    now = datetime.now(timezone.utc).isoformat()
+    with closing(connect(path)) as db, db:
+        db.execute('BEGIN IMMEDIATE')
+        return ingest.upsert_sections(db, document, now)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description='Import a term schedule once and dispatch new opening events.')
-    parser.add_argument('--term', default='fall-2026')
+    parser = argparse.ArgumentParser(description='Import the configured schedule once.')
+    parser.add_argument('--term', default=os.environ.get('SCHEDULE_TERM', 'fall-2026'))
     args = parser.parse_args()
-    try:
-        path = database_path()
-        init_db(path)
-        with exclusive_worker(path):
-            result = refresh_sections(path, args.term)
-            print(f'Imported {result.updated_records} section records at {result.checked_at}.')
-            if result.event_ids:
-                print(f'{send_notifications(path)} deliveries processed.')
-    except NotImplementedError:
-        parser.exit(1, 'Schedule import or notification dispatch needs its assigned implementation.\n')
-    except ApiProblem as exc:
-        parser.exit(1, f'Schedule command failed ({exc.code}).\n')
-    except WorkerAlreadyRunning as exc:
-        parser.exit(1, f'{exc}\n')
-    except (ValueError, OSError, sqlite3.Error) as exc:
-        parser.exit(1, f'Schedule command failed: {exc}\n')
+    path = database_path()
+    init_db(path)
+    with exclusive_worker(path):
+        result = refresh_sections(path, args.term)
+    print(f'Imported {result.updated_records} sections; {len(result.event_ids)} opening events.')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

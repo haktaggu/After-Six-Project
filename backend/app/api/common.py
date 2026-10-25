@@ -50,9 +50,6 @@ def problem_response(problem: ApiProblem) -> JSONResponse:
 async def handle_problem(_request: Request, exc: ApiProblem) -> JSONResponse:
     return problem_response(exc)
 
-async def handle_scaffold(_request: Request, exc: NotImplementedError) -> JSONResponse:
-    return problem_response(ApiProblem(501,"NOT_IMPLEMENTED",str(exc) or "This feature is not implemented"))
-
 async def handle_validation(_request: Request, exc: RequestValidationError) -> JSONResponse:
     fields = [FieldError(path=".".join(str(x) for x in error["loc"] if x not in {"body","query","path"}),
                          message="Invalid value") for error in exc.errors()]

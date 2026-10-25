@@ -61,9 +61,7 @@ class JobRunner:
         try:
             action()
         except Exception as exc:
-            if isinstance(exc, NotImplementedError):
-                problem = 'waiting for assigned feature implementation'
-            elif isinstance(exc, ApiProblem):
+            if isinstance(exc, ApiProblem):
                 problem = exc.code
             else:
                 problem = type(exc).__name__

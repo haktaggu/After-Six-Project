@@ -12,7 +12,6 @@ router = APIRouter(prefix="/api")
 def watchlist_page(db: DatabaseDep, student: StudentDep, query: Annotated[WatchlistQuery, Query()]) -> Page[WatchlistEntry]:
     return watchlist.list_watchlist(db, student, **query.model_dump())
 
-# - PUT has no body; return 201 for new watches, 200 for existing/reactivated watches.
 @router.put("/me/watchlist/{section_id}", response_model=WatchlistEntry, responses={201: {"description": "Created"}}, dependencies=[Depends(require_csrf)])
 def put_watch(section_id: str, db: DatabaseDep, student: StudentDep, response: Response) -> WatchlistEntry:
     result = watchlist.add_watch(db, student, section_id)

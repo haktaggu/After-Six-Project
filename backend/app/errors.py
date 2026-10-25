@@ -8,7 +8,3 @@ class ApiProblem(Exception):
         self.code = code
         self.message = message
         self.fields = [] if fields is None else fields
-
-
-class ScaffoldPending(NotImplementedError):
-    pass

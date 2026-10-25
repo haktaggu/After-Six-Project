@@ -9,7 +9,8 @@ def database_path() -> Path:
 
 
 def connect(path: Path) -> sqlite3.Connection:
-    conn = sqlite3.connect(path.resolve().as_uri() + "?mode=rw", uri=True, timeout=5)
+    # FastAPI can resume a request dependency on another worker thread.
+    conn = sqlite3.connect(path.resolve().as_uri() + "?mode=rw", uri=True, timeout=5, check_same_thread=False)
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 

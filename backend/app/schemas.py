@@ -92,8 +92,8 @@ class Course(ApiModel):
     catalog_number: str
     title: str
     description: str | None
-    units_min: float | None
-    units_max: float | None
+    units_min: float | None = Field(ge=0, allow_inf_nan=False)
+    units_max: float | None = Field(ge=0, allow_inf_nan=False)
     prerequisite_text: str | None
     corequisite_text: str | None
     restrictions_text: str | None
@@ -101,8 +101,8 @@ class Course(ApiModel):
 
 class Meeting(ApiModel):
     days: list[Weekday]
-    start_time: str | None
-    end_time: str | None
+    start_time: str | None = Field(pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$")
+    end_time: str | None = Field(pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$")
     location: str | None
     is_tba: bool
 
@@ -117,8 +117,8 @@ class Section(ApiModel):
     course: Course
     title: str
     mode: str
-    units: float | None
-    open_seats: int | None
+    units: float | None = Field(ge=0, allow_inf_nan=False)
+    open_seats: int | None = Field(ge=0, strict=True)
     availability: Availability
     meetings: list[Meeting]
     instructors: list[Instructor]

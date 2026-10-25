@@ -1,37 +1,39 @@
-# - SQL uses parameters. Mutating services own their transactions; read helpers never commit.
 from __future__ import annotations
 
-from app.errors import ApiProblem
-from app.schemas import (
-    AuthenticatedStudent,
-    Database,
-    Page,
-    WatchMutationResult,
-    WatchlistEntry,
-)
+from datetime import datetime, timezone
+
 from app.features.courses import get_section
 from app.features.prerequisites import check_eligibility
+from app.schemas import AuthenticatedStudent, Database, Page, WatchMutationResult, WatchlistEntry
 
-# - Count active current-student watches with optional term filter; sort added_at DESC,section_id
-#   ASC.
-# - Build nested Section via get_section and eligibility via check_eligibility, including course
-#   grades and profile GPA/units/standing/major. Recalculate on reads; return the page.
-# - WatchlistEntry: {section: Section, added_at: string, eligibility: Eligibility}.
+
 def list_watchlist(db: Database, student: AuthenticatedStudent, term: str | None = None, limit: int = 25, offset: int = 0) -> Page[WatchlistEntry]:
-    raise NotImplementedError
+    where = 'student_id=? AND active=1'
+    args = [student.student_id]
+    if term is not None:
+        where += ' AND term=?'
+        args.append(term)
+    total = db.execute('SELECT count(*) FROM watchlists WHERE ' + where, args).fetchone()[0]
+    rows = db.execute('SELECT section_id,added_at FROM watchlists WHERE ' + where + ' ORDER BY added_at DESC,section_id LIMIT ? OFFSET ?', [*args, limit, offset]).fetchall()
+    sections = [get_section(db, r[0]) for r in rows]
+    ids = list(dict.fromkeys(s.course.id for s in sections))
+    eligibility = {r.course_id: r for r in check_eligibility(db, student.student_id, ids).results} if ids else {}
+    return Page(items=[WatchlistEntry(section=s, added_at=r[1], eligibility=eligibility[s.course.id]) for s, r in zip(sections, rows)], total=total, limit=limit, offset=offset)
 
 
-# - Load section or 404. Get eligibility for its course; retain warnings without blocking save.
-# - In one transaction create unique watch or reactivate/update existing watch and added_at.
-# - Return entry and created=True only when a row was newly inserted; existing/reactivated is
-#   False.
-# - Storage: watchlists(id INTEGER PK, student_id FK profiles, section_id FK sections, term TEXT,
-#   added_at TEXT, active INTEGER 0/1; UNIQUE(student_id,section_id)).
 def add_watch(db: Database, student: AuthenticatedStudent, section_id: str) -> WatchMutationResult:
-    raise NotImplementedError
+    section = get_section(db, section_id)
+    eligibility = check_eligibility(db, student.student_id, [section.course.id]).results[0]
+    now = datetime.now(timezone.utc).isoformat()
+    with db:
+        db.execute('BEGIN IMMEDIATE')
+        exists = db.execute('SELECT 1 FROM watchlists WHERE student_id=? AND section_id=?', (student.student_id, section_id)).fetchone()
+        db.execute('INSERT INTO watchlists (student_id,section_id,term,added_at,active) VALUES (?,?,?,?,1) '
+                   'ON CONFLICT(student_id,section_id) DO UPDATE SET active=1,added_at=excluded.added_at',
+                   (student.student_id, section_id, section.term, now))
+    return WatchMutationResult(WatchlistEntry(section=section, added_at=now, eligibility=eligibility), not bool(exists))
 
 
-# - Deactivate only matching current-student watch in a transaction.
-# - Missing/already-inactive watch succeeds; router sends empty 204.
 def remove_watch(db: Database, student: AuthenticatedStudent, section_id: str) -> None:
-    raise NotImplementedError
+    with db:
+        db.execute('UPDATE watchlists SET active=0 WHERE student_id=? AND section_id=?', (student.student_id, section_id))

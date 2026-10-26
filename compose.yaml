@@ -8,6 +8,9 @@ services:
     environment:
       DATABASE_PATH: /data/oursjsu.db
       WATCHFILES_FORCE_POLLING: "true"
+      DATA_MODE: ${DATA_MODE:-replay}
+      CATALOG_INPUT: ${CATALOG_INPUT:-snapshot}
+      REVIEW_COURSE_IDS: ${REVIEW_COURSE_IDS:-catalog}
     volumes:
       - ./backend:/app
       - sqlite_data:/data
@@ -27,6 +30,9 @@ services:
       - ./backend/.env
     environment:
       DATABASE_PATH: /data/oursjsu.db
+      DATA_MODE: ${DATA_MODE:-replay}
+      CATALOG_INPUT: ${CATALOG_INPUT:-snapshot}
+      REVIEW_COURSE_IDS: ${REVIEW_COURSE_IDS:-catalog}
     volumes:
       - ./backend:/app
       - sqlite_data:/data

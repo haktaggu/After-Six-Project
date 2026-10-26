@@ -10,6 +10,8 @@ from app.schemas import (
     MajorRoadmap,
     Page,
     PaginationQuery,
+    Eligibility,
+    RequirementConfirmationUpdate,
     StudentRoadmap,
 )
 from app.features import roadmap, prerequisites
@@ -31,3 +33,9 @@ def eligibility(body: EligibilityRequest, db: DatabaseDep, student: StudentDep) 
 @router.get("/me/roadmap", response_model=StudentRoadmap, status_code=200)
 def student_roadmap(db: DatabaseDep, student: StudentDep) -> StudentRoadmap:
     return roadmap.get_student_roadmap(db,student)
+
+@router.put("/me/requirement-confirmations/{course_id}/{requirement_id}", response_model=Eligibility, dependencies=[Depends(require_csrf)])
+def requirement_confirmation(
+    course_id: str, requirement_id: str, body: RequirementConfirmationUpdate, db: DatabaseDep, student: StudentDep,
+) -> Eligibility:
+    return prerequisites.update_requirement_confirmation(db, student.student_id, course_id, requirement_id, body.confirmed)

@@ -35,7 +35,6 @@ export function useSession(): SessionActions {
 
   const signIn = useCallback(async (body: LoginRequest): Promise<void> => {
     const currentRequest = ++requestId.current
-    setState({ status: 'loading', session: null, error: null })
     try {
       const { csrf_token } = await fetchCsrf()
       if (currentRequest !== requestId.current) return

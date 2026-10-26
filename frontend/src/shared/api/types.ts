@@ -246,4 +246,5 @@ export type SessionState =
 export interface PageProps {
   onNavigate?: (page: Screen) => void
   onSessionChanged?: () => void
+  onSignIn?: (body: LoginRequest) => Promise<void>
 }

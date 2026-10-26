@@ -14,5 +14,5 @@ export function checkEligibility(body: EligibilityRequest): Promise<EligibilityR
 }
 
 export function getStudentRoadmap(signal?: AbortSignal): Promise<StudentRoadmap> {
-  return apiRequest<StudentRoadmap>('/me/roadmap', { signal, cache: 'no-store' })
+  return apiRequest<StudentRoadmap>('/me/roadmap', { signal })
 }

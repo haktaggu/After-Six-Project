@@ -18,3 +18,5 @@ docker compose up --build
 - `frontend/src/` — interface and styles.
 - `backend/app/api/` — API endpoints.
 - `backend/app/features/` — feature logic.
+
+min was here

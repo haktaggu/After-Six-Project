@@ -1,30 +1,25 @@
 import { useState } from 'react'
+import { addWatch } from '../shared/api/watchlist'
 import type { WatchlistEntry } from '../shared/api/types'
+import { ErrorNotice } from './Feedback'
 
-interface WatchButtonProps {
-  sectionId: string
-  onAdded?: (watch: WatchlistEntry) => void
-}
-
-// - shared/api/watchlist.addWatch(sectionId)->WatchlistEntry; PUT has no body.
-// - 201 means new, 200 existing/reactivated. Duplicate clicks must not duplicate watches.
-// - Entry contains section:Section, added_at:UTC string, eligibility:{course_id,status,
-//   reasons:string[],missing_course_ids:string[]}. Unknown/ineligible warns but doesn't block.
-// - Keep the row pending while adding; surface failure without pretending success.
-async function handleAdd(sectionId: string): Promise<WatchlistEntry> {
-  void sectionId
-  throw new Error('Adding watches is not implemented')
-}
-
-// - sectionId is the exact string from Section.id; onAdded lets the caller refresh.
-// - Show pending/saved/error states and a visible keyboard focus.
-export default function WatchButton({ sectionId, onAdded }: WatchButtonProps) {
-  const [notice, setNotice] = useState('')
-  return <>
-    <button type="button" disabled onClick={() => {
-      void handleAdd(sectionId).then(watch => onAdded?.(watch))
-        .catch((error: unknown) => setNotice(error instanceof Error ? error.message : 'Request failed'))
-    }}>Add to watchlist</button>
-    {notice && <span role="alert">{notice}</span>}
-  </>
+export default function WatchButton({ sectionId, onAdded }: { sectionId: string; onAdded?: (watch: WatchlistEntry) => void }) {
+  const [pending, setPending] = useState(false)
+  const [saved, setSaved] = useState<WatchlistEntry | null>(null)
+  const [error, setError] = useState<unknown>(null)
+  async function add() {
+    setPending(true)
+    setError(null)
+    try {
+      const res = await addWatch(sectionId)
+      setSaved(res)
+      onAdded?.(res)
+    } catch (err) { setError(err) }
+    finally { setPending(false) }
+  }
+  return <div>
+    <button type="button" disabled={pending || !!saved} onClick={() => { void add() }}>{pending ? 'Saving…' : saved ? 'Watching' : 'Watch section'}</button>
+    {saved && saved.eligibility.status !== 'eligible' && <p className="muted" role="status">Saved ({saved.eligibility.status})</p>}
+    <ErrorNotice error={error} />
+  </div>
 }

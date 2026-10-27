@@ -144,6 +144,7 @@ CREATE TABLE IF NOT EXISTS notification_logs (
     created_at TEXT NOT NULL,
     sent_at TEXT,
     last_error TEXT,
+    is_read INTEGER NOT NULL DEFAULT 0 CHECK (is_read IN (0, 1)),
     FOREIGN KEY (student_id) REFERENCES student_profiles(student_id) ON DELETE CASCADE,
     FOREIGN KEY (section_id) REFERENCES sections(id) ON DELETE CASCADE,
     FOREIGN KEY (event_id) REFERENCES availability_events(id) ON DELETE CASCADE,

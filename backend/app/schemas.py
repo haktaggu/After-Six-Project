@@ -227,6 +227,7 @@ class Notification(ApiModel):
     status: DeliveryStatus
     created_at: str
     sent_at: str | None
+    is_read: bool
 
 @dataclass(frozen=True)
 class AuthenticatedStudent:

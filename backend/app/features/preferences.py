@@ -19,8 +19,64 @@ def update_preferences(db: Database, student: AuthenticatedStudent, body: Prefer
     return get_preferences(db, student)
 
 
-def list_notifications(db: Database, student: AuthenticatedStudent, limit: int = 25, offset: int = 0) -> Page[Notification]:
-    total = db.execute('SELECT count(*) FROM notification_logs WHERE student_id=?', (student.student_id,)).fetchone()[0]
-    rows = db.execute('SELECT id,section_id,event_type,status,created_at,sent_at FROM notification_logs WHERE student_id=? '
-                      'ORDER BY created_at DESC,id LIMIT ? OFFSET ?', (student.student_id, limit, offset))
-    return Page(items=[Notification(**dict(zip(('id', 'section_id', 'event_type', 'status', 'created_at', 'sent_at'), r))) for r in rows], total=total, limit=limit, offset=offset)
+def list_notifications(
+    db: Database,
+    student: AuthenticatedStudent,
+    limit: int = 25,
+    offset: int = 0,
+) -> Page[Notification]:
+    total = db.execute(
+        "SELECT count(*) FROM notification_logs WHERE student_id=?",
+        (student.student_id,),
+    ).fetchone()[0]
+
+    rows = db.execute(
+        """
+        SELECT id, section_id, event_type, status, created_at, sent_at, is_read
+        FROM notification_logs
+        WHERE student_id=?
+        ORDER BY created_at DESC, id
+        LIMIT ? OFFSET ?
+        """,
+        (student.student_id, limit, offset),
+    )
+
+    return Page(
+        items=[
+            Notification(
+                id=row[0],
+                section_id=row[1],
+                event_type=row[2],
+                status=row[3],
+                created_at=row[4],
+                sent_at=row[5],
+                is_read=bool(row[6]),
+            )
+            for row in rows
+        ],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+def mark_notification_read(
+    db: Database,
+    student: AuthenticatedStudent,
+    notification_id: str,
+) -> None:
+    with db:
+        cursor = db.execute(
+            """
+            UPDATE notification_logs
+            SET is_read=1
+            WHERE id=? AND student_id=?
+            """,
+            (notification_id, student.student_id),
+        )
+
+        if cursor.rowcount == 0:
+            raise ApiProblem(
+                404,
+                "NOTIFICATION_NOT_FOUND",
+                "Notification was not found.",
+            )

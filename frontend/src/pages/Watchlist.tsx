@@ -1,51 +1,39 @@
-import { useState } from 'react'
-import type { Page, PageProps, WatchlistEntry, WatchlistQuery } from '../shared/api/types'
-import './Watchlist.css'
+import { useCallback, useState } from 'react'
+import { listWatchlist, removeWatch } from '../shared/api/watchlist'
+import { listTerms } from '../shared/api/courses'
+import { allPages } from '../shared/api/lookups'
+import { useLoad } from '../shared/hooks/useLoad'
+import type { PageProps } from '../shared/api/types'
 import NotificationPreferences from '../components/NotificationPreferences'
 import NotificationHistory from '../components/NotificationHistory'
+import SectionDetails, { EligibilityDetails } from '../components/SectionDetails'
+import { ErrorNotice, Pagination } from '../components/Feedback'
+import './Watchlist.css'
 
-// - shared/api/watchlist.listWatchlist(query)->Page<WatchlistEntry>. Order added_at DESC then
-//   section ID ASC; optional term filter.
-// - Render nested section, freshness and eligibility warnings. Empty list gets a useful empty
-//   state; loading/failure are different.
-// - WatchlistQuery: {limit?: number, offset?: number, term?: string}.
-// - WatchlistEntry: {section: Section, added_at: string, eligibility: Eligibility}.
-async function loadWatchlist(query: WatchlistQuery = {}): Promise<Page<WatchlistEntry>> {
-  void [query]
-  throw new Error('loadWatchlist is not implemented')
-}
-
-// - shared/api/watchlist.removeWatch(sectionId)->void, including repeat delete. Mark only the row
-//   pending; retain it on error.
-// - After success reload the page; step back a page if removal emptied the last one. Warnings
-//   never block adding a watch.
-async function handleRemove(sectionId: string): Promise<void> {
-  void [sectionId]
-  throw new Error('handleRemove is not implemented')
-}
-
-// - Use a nonnegative offset and existing filter/limit. Call listWatchlist({...query,offset}).
-//   total counts all matches, not the current page length.
-async function changePage(offset: number, query: WatchlistQuery): Promise<Page<WatchlistEntry>> {
-  void [offset, query]
-  throw new Error('changePage is not implemented')
-}
-
-const actions = { loadWatchlist, handleRemove, changePage }
-
-export default function Watchlist(props: PageProps = {}) {
-  const [notice, setNotice] = useState('')
-  void props
-  return (
-    <section className="watchlist-page">
-      <h1>Watchlist</h1>
-      <p>Section monitoring will be built here.</p>
-      <button type="button" disabled onClick={() => {
-        void actions.loadWatchlist().catch((error: unknown) => setNotice(error instanceof Error ? error.message : 'Request failed'))
-      }}>Refresh</button>
-      <NotificationPreferences />
-      <NotificationHistory />
-      {notice && <p role="alert">{notice}</p>}
-    </section>
-  )
+export default function Watchlist({ onNavigate }: PageProps) {
+  const [term, setTerm] = useState('')
+  const [offset, setOffset] = useState(0)
+  const [pending, setPending] = useState<string[]>([])
+  const [error, setError] = useState<unknown>(null)
+  const terms = useLoad(useCallback(() => allPages(listTerms), []))
+  const { data, error: loadError, loading, reload } = useLoad(useCallback((signal: AbortSignal) => listWatchlist({ term: term || undefined, offset, limit: 10 }, signal), [term, offset]))
+  async function remove(id: string) {
+    setPending(curr => [...curr, id]); setError(null)
+    try {
+      await removeWatch(id)
+      if (data?.items.length === 1 && offset > 0) setOffset(Math.max(0, offset - 10))
+      else reload()
+    } catch (err) { setError(err) }
+    finally { setPending(curr => curr.filter(idx => idx !== id)) }
+  }
+  return <section className="watchlist-page">
+    <div className="page-heading"><h1>Your watchlist</h1><button disabled={loading} onClick={reload}>Refresh watchlist</button></div>
+    <div className="watchlist-layout"><div><label>Filter by term<select value={term} onChange={e => { setTerm(e.target.value); setOffset(0) }}><option value="">All terms</option>{terms.data?.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
+      <ErrorNotice error={terms.error} /><ErrorNotice error={loadError} /><ErrorNotice error={error} />{loading && <p role="status">Loading watched sections…</p>}
+      {data && <><h2>{data.total} watched section{data.total === 1 ? '' : 's'}</h2>{!data.items.length && !loading && <div className="empty"><p>No watched sections match this view.</p><button onClick={() => onNavigate?.('Search')}>Find a section to watch</button></div>}
+        {data.items.map(w => <article className="section-row" key={w.section.id}><div className="section-heading"><div><h3>{w.section.course.id} · Section {w.section.section_number}</h3><p>{w.section.course.title}</p></div><button disabled={pending.includes(w.section.id)} onClick={() => { void remove(w.section.id) }}>{pending.includes(w.section.id) ? 'Removing…' : 'Remove watch'}</button></div>
+          <SectionDetails section={w.section} /><EligibilityDetails value={w.eligibility} />
+        </article>)}<Pagination total={data.total} offset={offset} limit={10} loading={loading} onPage={setOffset} /></>}
+    </div><aside><NotificationPreferences /><NotificationHistory /></aside></div>
+  </section>
 }

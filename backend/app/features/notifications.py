@@ -22,15 +22,18 @@ def dispatch_opening_event(db: Database, event: SeatOpeningEvent) -> int:
         if row[2]:
             return 0
         section = db.execute('SELECT c.id,c.title,s.section_number,s.source_url FROM sections s JOIN courses c ON c.id=s.course_id WHERE s.id=?', (row[0],)).fetchone()
-        students = db.execute('SELECT w.student_id FROM watchlists w JOIN notification_preferences p ON p.student_id=w.student_id '
-                              'WHERE w.section_id=? AND w.active=1 AND p.enabled=1', (row[0],)).fetchall()
+        students = db.execute('SELECT w.student_id FROM watchlists w '
+                              'WHERE w.section_id=? AND w.active=1', (row[0],)).fetchall()
         now = datetime.now(timezone.utc).isoformat()
         message = f'{section[0]} — {section[1]}, section {section[2]}: {row[1]} open seat(s) observed. Check MySJSU before enrolling. {section[3]}'
         count = 0
         for student in students:
+            pref = db.execute('SELECT enabled FROM notification_preferences WHERE student_id=?', (student[0],)).fetchone()
+            discord_on = bool(pref and pref[0])
+            init_status = 'pending' if discord_on else 'sent'
             cur = db.execute('INSERT INTO notification_logs (id,event_id,student_id,section_id,event_type,message,status,created_at) '
-                             "VALUES (?,?,?,?,'section_opened',?,'pending',?) ON CONFLICT(event_id,student_id) DO NOTHING",
-                             (str(uuid4()), event.id, student[0], row[0], message, now))
+                             "VALUES (?,?,?,?,'section_opened',?,?,?) ON CONFLICT(event_id,student_id) DO NOTHING",
+                             (str(uuid4()), event.id, student[0], row[0], message, init_status, now))
             count += cur.rowcount
         db.execute('UPDATE availability_events SET processed_at=? WHERE id=?', (now, event.id))
     return count

@@ -82,7 +82,7 @@ export default function Search() {
         <p className="section-preview">{s.instructors.map(i => i.name).join(', ') || 'Instructor TBA'} · {s.mode}</p><CourseDetails section={s} />
         <div className="actions"><label className="checkbox"><input type="checkbox" disabled={results.loading} checked={selected.some(curr => curr.id === s.id)} onChange={() => toggle(s)} />Compare</label><WatchButton sectionId={s.id} /></div>
       </article>)}</div>
-      <Pagination total={results.data.total} offset={query.offset} start={query.offset} limit={25} loading={results.loading} onPage={offset => setQuery(q => ({ ...q, offset }))} />
+      <Pagination total={results.data.total} offset={query.offset} limit={25} loading={results.loading} onPage={offset => setQuery(q => ({ ...q, offset }))} />
     </>}
   </section>
 }

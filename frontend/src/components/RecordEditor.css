@@ -1,0 +1,72 @@
+.record-form .record-sections {
+  flex: 1 0 100%;
+  min-width: 0;
+  border-block: 1px solid var(--border);
+}
+
+.record-form .record-sections > summary {
+  padding: 0.625rem 0;
+  color: var(--blue);
+  font-size: var(--font-label);
+  font-weight: 700;
+}
+
+.record-sections-body {
+  padding-bottom: 0.75rem;
+}
+
+.record-sections fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.record-sections legend {
+  color: var(--navy);
+  font-size: var(--font-label);
+  font-weight: 700;
+}
+
+.record-form label.record-section-choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.625rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0;
+}
+
+.record-section-choice input {
+  min-height: 0;
+  width: 1rem;
+  height: 1rem;
+  margin: 0.2rem 0 0;
+  accent-color: var(--blue);
+}
+
+.record-section-choice span.help {
+  display: block;
+}
+.record-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  gap: 1rem;
+}
+
+.record-form .record-fields label {
+  min-width: 0;
+}
+
+.selected-course-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.selected-course-heading h2 {
+  margin: 0;
+}
+

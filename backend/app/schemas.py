@@ -61,7 +61,7 @@ class Profile(ApiModel):
     major_code: str | None
     standing: Standing
     gpa: float | None = Field(ge=0, le=4, allow_inf_nan=False, strict=True)
-    earned_units: int | None = Field(ge=0, strict=True)
+    earned_units: int | None = Field(ge=0, le=250, strict=True)
 
 class CsrfResponse(ApiModel):
     csrf_token: str
@@ -269,7 +269,7 @@ class StudentContext(ApiModel):
     major_code: str | None
     standing: Standing
     gpa: float | None = Field(ge=0, le=4, allow_inf_nan=False, strict=True)
-    earned_units: int | None = Field(ge=0, strict=True)
+    earned_units: int | None = Field(ge=0, le=250, strict=True)
     course_records: list[CourseRecord]
 
 class ImportedCourse(ApiModel):

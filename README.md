@@ -10,7 +10,9 @@ Install and open [Docker Desktop](https://www.docker.com/products/docker-desktop
 docker compose up --build
 ```
 
-- Frontend: http://localhost:5173 (will auto-update when doing changes)
+- Frontend: http://localhost:5173
+    - Username: demo@oursjsu.test
+    - Password: oursjsu-demo-password
 - API docs: http://localhost:8000/docs
 
 ## Important Directories
@@ -19,4 +21,3 @@ docker compose up --build
 - `backend/app/api/` — API endpoints.
 - `backend/app/features/` — feature logic.
 
-min was here

@@ -105,6 +105,7 @@ describe('EligibilityDetails', () => {
       missing_course_ids: [],
     }
     render(<EligibilityDetails value={value} />)
+    expect(screen.getByText('You meet the prerequisite requirements for this course.')).toBeDefined()
     expect(screen.getByText(/Prerequisites satisfied: CMPE 126/)).toBeDefined()
   })
 
@@ -116,6 +117,7 @@ describe('EligibilityDetails', () => {
       missing_course_ids: ['CMPE-126'],
     }
     render(<EligibilityDetails value={value} />)
+    expect(screen.getByText('You currently do not meet one or more prerequisite requirements.')).toBeDefined()
     expect(screen.getByText('Missing credit: CMPE-126')).toBeDefined()
   })
 })

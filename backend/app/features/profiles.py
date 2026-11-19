@@ -11,8 +11,10 @@ def get_profile(db: Database, student: AuthenticatedStudent) -> ProfileResponse:
                      (student.user_id, student.student_id)).fetchone()
     if row is None:
         raise ApiProblem(404, 'NOT_FOUND', 'Profile not found')
+    earned_units = min(250, max(0, row[7])) if row[7] is not None else None
+    profile_data = dict(zip(('major_code', 'standing', 'gpa', 'earned_units'), (*row[4:7], earned_units)))
     return ProfileResponse(user=dict(zip(('id', 'email', 'full_name', 'created_at'), row[:4])),
-                           profile=dict(zip(('major_code', 'standing', 'gpa', 'earned_units'), row[4:])))
+                           profile=profile_data)
 
 
 def update_profile(db: Database, student: AuthenticatedStudent, body: ProfileUpdate) -> ProfileResponse:

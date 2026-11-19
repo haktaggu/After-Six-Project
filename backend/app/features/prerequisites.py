@@ -132,7 +132,8 @@ def build_student_context(db: Database, student_id: str) -> StudentContext:
         raise ApiProblem(404, 'NOT_FOUND', 'Profile not found')
     rows = db.execute('SELECT course_id,status,grade,term FROM student_course_attempts WHERE student_id=?', (student_id,))
     records = [CourseRecord(**dict(zip(('course_id', 'status', 'grade', 'term'), r))) for r in rows]
-    return StudentContext(student_id=student_id, major_code=row[0], standing=row[1], gpa=row[2], earned_units=row[3], course_records=records)
+    earned_units = min(250, max(0, row[3])) if row[3] is not None else None
+    return StudentContext(student_id=student_id, major_code=row[0], standing=row[1], gpa=row[2], earned_units=earned_units, course_records=records)
 
 
 def evaluate_grade(grade: Grade | None, minimum_grade: str | None) -> EligibilityStatus:

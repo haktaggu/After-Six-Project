@@ -211,6 +211,15 @@ input, select {
   caret-color: var(--blue);
 }
 
+select {
+  text-align: left;
+  text-align-last: left;
+}
+
+select option {
+  text-align: left;
+}
+
 input::placeholder {
   color: #94a3b8;
 }

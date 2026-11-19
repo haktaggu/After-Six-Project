@@ -5,6 +5,10 @@
   align-items: start;
 }
 
+.watchlist-layout > div > label:first-of-type {
+  max-width: 260px;
+}
+
 .watchlist-layout > div > h2 {
   font-size: 18px;
   color: var(--text-primary);

@@ -59,7 +59,25 @@ describe('SectionDetails', () => {
 
   it('renders meeting days, times, and room', () => {
     render(<SectionDetails section={mockSection} />)
+    expect(screen.getByText('Meetings')).toBeDefined()
     expect(screen.getByText(/Tue, Thu · 10:30 AM–11:45 AM · ENG 331/)).toBeDefined()
+  })
+
+  it('formats 24-hour meeting times to 12-hour AM/PM', () => {
+    const sectionWith24h = {
+      ...mockSection,
+      meetings: [
+        {
+          days: ['mon', 'wed'] as any,
+          start_time: '13:30',
+          end_time: '14:45',
+          location: 'DH 250',
+          is_tba: false,
+        },
+      ],
+    }
+    render(<SectionDetails section={sectionWith24h} />)
+    expect(screen.getByText(/Mon, Wed · 1:30 PM–2:45 PM · DH 250/)).toBeDefined()
   })
 
   it('renders availability status and seat count', () => {

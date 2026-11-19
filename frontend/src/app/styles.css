@@ -683,6 +683,27 @@ details p, details li {
   margin-top: 6px;
 }
 
+.notification-list .mark-read-btn {
+  margin-top: 8px;
+  font-size: 12px;
+  min-height: 28px;
+  padding: 2px 10px;
+  background: var(--surface);
+  color: var(--blue);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.notification-list .mark-read-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--blue);
+}
+
+.notification-list li.read {
+  opacity: 0.8;
+}
+
 /* Responsive */
 @media (max-width: 760px) {
   .page-heading { flex-direction: column; align-items: flex-start; gap: 16px; }

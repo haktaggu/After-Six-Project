@@ -210,6 +210,7 @@ export interface Notification {
   status: DeliveryStatus
   created_at: string
   sent_at: string | null
+  is_read?: boolean
 }
 
 export interface PaginationQuery {

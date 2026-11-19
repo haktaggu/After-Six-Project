@@ -71,6 +71,11 @@ describe('SectionDetails', () => {
     render(<SectionDetails section={mockSection} />)
     expect(screen.getByText('Class includes mandatory lab attendance.')).toBeDefined()
   })
+
+  it('hides section notes when showNotes is false', () => {
+    render(<SectionDetails section={mockSection} showNotes={false} />)
+    expect(screen.queryByText('Class includes mandatory lab attendance.')).toBeNull()
+  })
 })
 
 describe('EligibilityDetails', () => {

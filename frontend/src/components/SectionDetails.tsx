@@ -8,7 +8,7 @@ export function EligibilityDetails({ value }: { value: Eligibility }) {
   </details>
 }
 
-export default function SectionDetails({ section: s }: { section: Section }) {
+export default function SectionDetails({ section: s, showNotes = true }: { section: Section; showNotes?: boolean }) {
   return <dl className="section-facts">
     <div><dt>Class number</dt><dd>{s.class_number} · {s.mode}</dd></div>
     <div><dt>Instructor</dt><dd>{s.instructors.map(i => i.name).join(', ') || 'Not listed'}</dd></div>
@@ -18,6 +18,6 @@ export default function SectionDetails({ section: s }: { section: Section }) {
     <div><dt>Units</dt><dd>{s.units ?? 'Unknown'}</dd></div>
     <div><dt>Availability</dt><dd><span className={`status ${s.availability}`}>{s.availability}</span> {s.open_seats === null ? 'Seat count unknown' : `${s.open_seats} open seat${s.open_seats === 1 ? '' : 's'}`}</dd></div>
     <div><dt>Last observation</dt><dd>{s.last_checked_at ? new Date(s.last_checked_at).toLocaleString() : 'Not observed'}{s.is_stale && <span className="status unknown">Stale</span>}</dd></div>
-    {s.notes && <div><dt>Notes</dt><dd>{s.notes}</dd></div>}
+    {showNotes && s.notes && <div><dt>Notes</dt><dd>{s.notes}</dd></div>}
   </dl>
 }

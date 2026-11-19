@@ -83,7 +83,7 @@ export default function Dashboard() {
             <label>Major<select name="major_code" defaultValue={profile.profile.major_code ?? ''}><option value="">Not selected</option>{data.majors.map(m => <option key={m.major_code} value={m.major_code}>{m.title} {m.degree_type}</option>)}</select></label>
             <label>Class standing<select name="standing" defaultValue={profile.profile.standing}>{(['unspecified', 'freshman', 'sophomore', 'junior', 'senior', 'graduate'] as Standing[]).map(s => <option key={s} value={s}>{s === 'unspecified' ? 'Unknown' : s[0].toUpperCase() + s.slice(1)}</option>)}</select></label>
             <label>Cumulative GPA<input name="gpa" type="number" min="0" max="4" step="0.01" defaultValue={profile.profile.gpa ?? ''} placeholder="Unknown" /></label>
-            <label>Total earned units<input name="earned_units" type="number" min="0" step="1" defaultValue={profile.profile.earned_units ?? ''} placeholder="Unknown" /></label>
+            <label>Total earned units<input name="earned_units" type="number" min="0" max="250" step="1" defaultValue={profile.profile.earned_units ?? ''} placeholder="Unknown" /></label>
           </div>
           <button className="primary" disabled={saving}>{saving ? 'Saving…' : 'Save academic profile'}</button><ErrorNotice error={error} />{notice && <p className="notice" role="status">{notice}</p>}
         </form>

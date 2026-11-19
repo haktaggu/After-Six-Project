@@ -1,10 +1,18 @@
 import type { Eligibility, Section } from '../shared/api/types'
 
+const statusNotes: Record<string, string> = {
+  eligible: 'You meet the prerequisite requirements for this course.',
+  ineligible: 'You currently do not meet one or more prerequisite requirements.',
+  unknown: 'Prerequisite eligibility requires verification (department consent, placement exam, or concurrent enrollment).',
+}
+
 export function EligibilityDetails({ value }: { value: Eligibility }) {
+  const note = statusNotes[value.status]
   return <details className="eligibility">
     <summary><span className={`status ${value.status}`}>{value.status}</span> Prerequisite details</summary>
+    {note && <p className="eligibility-status-note">{note}</p>}
     {value.reasons.length ? <ul>{value.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul> : <p>No prerequisite conditions apply.</p>}
-    {value.missing_course_ids.length > 0 && <p>Missing credit: {value.missing_course_ids.join(', ')}</p>}
+    {value.missing_course_ids.length > 0 && <p className="missing-credit">Missing credit: {value.missing_course_ids.join(', ')}</p>}
   </details>
 }
 

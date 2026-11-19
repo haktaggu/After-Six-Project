@@ -28,7 +28,12 @@ function CourseDetails({ section }: { section: Section }) {
     <SectionDetails section={current} /><ErrorNotice error={error} />{loading && <p role="status">Loading course…</p>}
     {Boolean(error) && <button onClick={() => { void load(true) }}>Retry details</button>}
     {course && <div className="course-description"><p>{course.description || 'Description not provided.'}</p>
-      <dl><dt>Prerequisites</dt><dd>{course.prerequisite_text ?? 'Not verified'}</dd><dt>Corequisites</dt><dd>{course.corequisite_text ?? 'Not listed'}</dd><dt>Restrictions</dt><dd>{course.restrictions_text ?? 'Not listed'}</dd></dl>
+      <dl>
+        <dt>Units</dt><dd>{course.units_min != null ? (course.units_min === course.units_max ? `${course.units_min} units` : `${course.units_min}–${course.units_max} units`) : 'Units not specified'}</dd>
+        <dt>Prerequisites</dt><dd>{course.prerequisite_text || 'No prerequisite courses required'}</dd>
+        <dt>Corequisites</dt><dd>{course.corequisite_text || 'None'}</dd>
+        <dt>Restrictions</dt><dd>{course.restrictions_text || 'None'}</dd>
+      </dl>
       {course.catalog_url && <a href={course.catalog_url} target="_blank" rel="noreferrer">Official catalog</a>}
     </div>}
     <a href="https://one.sjsu.edu/" target="_blank" rel="noreferrer">Open MySJSU to enroll</a>

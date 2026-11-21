@@ -56,18 +56,36 @@ export default function Dashboard() {
   }, [offset])
   const { data, error: loadError, loading, reload } = useLoad(load)
   const courses = useLoad(useCallback(() => listCourses({ q: query, limit: 25, offset: courseOffset }), [query, courseOffset]))
+
   async function saveProfile(form: HTMLFormElement) {
     setSaving(true); setError(null); setNotice('')
     const fields = new FormData(form)
     try {
       const gpa = String(fields.get('gpa') ?? '').trim()
       const units = String(fields.get('earned_units') ?? '').trim()
-      await updateProfile({ major_code: String(fields.get('major_code') || '') || null, standing: String(fields.get('standing')) as Standing,
-        gpa: gpa === '' ? null : Number(gpa), earned_units: units === '' ? null : Number(units) })
+
+      const unitsNum = units === '' ? null : Number(units)
+      const gpaNum = gpa === '' ? null : Number(gpa)
+
+      // Frontend validation: show a notice when out of range
+      if (unitsNum !== null && (unitsNum < 0 || unitsNum > 250)) {
+        throw new Error('Total earned units must be between 0 and 250.')
+      }
+      if (gpaNum !== null && (gpaNum < 0 || gpaNum > 4)) {
+        throw new Error('Cumulative GPA must be between 0 and 4.')
+      }
+
+      await updateProfile({
+        major_code: String(fields.get('major_code') || '') || null,
+        standing: String(fields.get('standing')) as Standing,
+        gpa: gpaNum,
+        earned_units: unitsNum
+      })
       setNotice('Academic profile saved. Roadmap and watchlist eligibility will use these values.'); reload()
     } catch (err) { setError(err) }
     finally { setSaving(false) }
   }
+
   function refreshHistory() {
     if (data?.records.items.length === 1 && offset > 0) setOffset(Math.max(0, offset - 10))
     else reload()
@@ -78,14 +96,27 @@ export default function Dashboard() {
     <ErrorNotice error={loadError} />{loading && <p role="status">Loading student overview…</p>}
     {profile && data && <>
       <section className="profile-section"><h2>{profile.user.full_name}</h2><p>{profile.user.email}</p>
-        <form key={JSON.stringify(profile.profile)} onSubmit={e => { e.preventDefault(); void saveProfile(e.currentTarget) }}>
+        {/* Added noValidate to disable browser default validation and let custom JS handle it */}
+        <form key={JSON.stringify(profile.profile)} onSubmit={e => { e.preventDefault(); void saveProfile(e.currentTarget) }} noValidate>
           <div className="form-grid">
             <label>Major<select name="major_code" defaultValue={profile.profile.major_code ?? ''}><option value="">Not selected</option>{data.majors.map(m => <option key={m.major_code} value={m.major_code}>{m.title} {m.degree_type}</option>)}</select></label>
             <label>Class standing<select name="standing" defaultValue={profile.profile.standing}>{(['unspecified', 'freshman', 'sophomore', 'junior', 'senior', 'graduate'] as Standing[]).map(s => <option key={s} value={s}>{s === 'unspecified' ? 'Unknown' : s[0].toUpperCase() + s.slice(1)}</option>)}</select></label>
             <label>Cumulative GPA<input name="gpa" type="number" min="0" max="4" step="0.01" defaultValue={profile.profile.gpa ?? ''} placeholder="Unknown" /></label>
             <label>Total earned units<input name="earned_units" type="number" min="0" max="250" step="1" defaultValue={profile.profile.earned_units ?? ''} placeholder="Unknown" /></label>
           </div>
-          <button className="primary" disabled={saving}>{saving ? 'Saving…' : 'Save academic profile'}</button><ErrorNotice error={error} />{notice && <p className="notice" role="status">{notice}</p>}
+          <button className="primary" disabled={saving}>{saving ? 'Saving…' : 'Save academic profile'}</button>
+
+          {/* Unified notification box: red for errors, blue for success */}
+          <div style={{ marginTop: '16px' }}>
+            {error ? (
+              <div className="notice" style={{ backgroundColor: '#fef2f2', borderColor: '#fca5a5', color: '#b91c1c', borderWidth: '1px', borderStyle: 'solid', padding: '12px 16px', borderRadius: '4px' }} role="alert">
+                {error instanceof Error ? error.message : 'An error occurred while saving the profile.'}
+              </div>
+            ) : notice ? (
+              <div className="notice" role="status">{notice}</div>
+            ) : null}
+          </div>
+
         </form>
       </section>
       <section><h2>Course history</h2>

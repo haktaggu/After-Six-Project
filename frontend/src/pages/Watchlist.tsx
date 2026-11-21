@@ -32,7 +32,9 @@ export default function Watchlist({ onNavigate }: PageProps) {
       <ErrorNotice error={terms.error} /><ErrorNotice error={loadError} /><ErrorNotice error={error} />{loading && <p role="status">Loading watched sections…</p>}
       {data && <><h2>{data.total} watched section{data.total === 1 ? '' : 's'}</h2>{!data.items.length && !loading && <div className="empty"><p>No watched sections match this view.</p><button onClick={() => onNavigate?.('Search')}>Find a section to watch</button></div>}
         {data.items.map(w => <article className="section-row" key={w.section.id}><div className="section-heading"><div><h3>{w.section.course.id} · Section {w.section.section_number}</h3><p>{w.section.course.title}</p></div><button disabled={pending.includes(w.section.id)} onClick={() => { void remove(w.section.id) }}>{pending.includes(w.section.id) ? 'Removing…' : 'Remove watch'}</button></div>
-          <SectionDetails section={w.section} showNotes={false} /><EligibilityDetails value={w.eligibility} />
+          {/* 在这里把 w.section 传给 EligibilityDetails */}
+          <SectionDetails section={w.section} showNotes={false} />
+          <EligibilityDetails value={w.eligibility} section={w.section} />
         </article>)}<Pagination total={data.total} offset={offset} limit={10} loading={loading} onPage={setOffset} /></>}
     </div><aside><NotificationPreferences /><NotificationHistory /></aside></div>
   </section>

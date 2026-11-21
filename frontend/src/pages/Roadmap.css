@@ -1,177 +1,168 @@
-.progress-summary {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 28px;
-  box-shadow: var(--shadow-sm);
-  margin-bottom: 28px;
-}
-
-.progress-summary h2 {
-  font-size: 22px;
-  color: var(--text-primary);
-  margin-bottom: 8px;
-}
-
-.progress-label {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
+.search-form {
+  display: grid;
+  grid-template-columns: 1.2fr 2fr 1fr auto;
   gap: 16px;
-  margin: 16px 0 10px;
-}
-
-.progress-label strong {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.progress-label span {
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--blue);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-
-progress {
-  width: 100%;
-  height: 10px;
-  border-radius: var(--radius-pill);
-  overflow: hidden;
-  border: none;
-  background: #e2e8f0;
-}
-
-progress::-webkit-progress-bar {
-  background: #e2e8f0;
-  border-radius: var(--radius-pill);
-}
-
-progress::-webkit-progress-value {
-  background: linear-gradient(90deg, var(--blue), #0284c7);
-  border-radius: var(--radius-pill);
-}
-
-.recommendations {
+  align-items: flex-end;
+  padding: 24px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 24px;
   box-shadow: var(--shadow-sm);
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 
-.recommendation-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  list-style: none;
-  padding: 0;
-  margin: 14px 0 0;
-}
-
-.recommendation-chips li {
+.search-form > label + label {
   margin: 0;
 }
 
-.recommendation-chips a {
-  display: inline-flex;
+.search-form .help {
+  margin: 0;
+  font-size: 12px;
+}
+
+.comparison-tray {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
   align-items: center;
-  gap: 8px;
   background: #eff6ff;
   border: 1px solid #bfdbfe;
-  color: var(--blue);
-  padding: 7px 14px;
-  border-radius: var(--radius-pill);
-  font-size: 13px;
-  font-weight: 500;
-  text-decoration: none;
-  box-shadow: var(--shadow-xs);
-  transition: all 0.15s ease;
-}
-
-.recommendation-chips a strong {
-  font-weight: 700;
-}
-
-.recommendation-chips a span {
-  color: var(--text-secondary);
-  font-weight: 400;
-}
-
-.recommendation-chips a:hover {
-  background: #dbeafe;
-  border-color: #93c5fd;
-  transform: translateY(-1px);
+  border-radius: var(--radius-md);
+  padding: 14px 20px;
+  margin-block: 20px;
   box-shadow: var(--shadow-sm);
 }
 
-.semester-list {
-  display: grid;
-  gap: 24px;
+.comparison-tray > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }
 
-.semester {
+.comparison-tray strong {
+  font-size: 14px;
+  color: var(--blue);
+  margin-right: 6px;
+}
+
+.comparison-tray button:not(.primary) {
+  background: #ffffff;
+  border: 1px solid #bfdbfe;
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 10px;
+  min-height: 32px;
+  border-radius: var(--radius-pill);
+}
+
+.comparison-tray button:not(.primary):hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+
+.comparison-grid {
   display: grid;
-  grid-template-columns: 140px 1fr;
-  gap: 28px;
-  padding: 24px;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-block: 20px 32px;
+}
+
+.comparison-grid article {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
+  padding: 24px;
   box-shadow: var(--shadow-sm);
+  min-width: 0;
 }
 
-.semester > h2 {
-  color: var(--blue);
-  font-size: 17px;
-  font-weight: 700;
-  padding-top: 2px;
-  position: sticky;
-  top: 80px;
-  align-self: start;
+.comparison-grid .section-facts {
+  grid-template-columns: 1fr;
 }
 
-.roadmap-course {
+.section-preview {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
   background: var(--canvas);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 18px 20px;
-  margin-bottom: 12px;
-  scroll-margin-top: 80px;
-  transition: border-color 0.15s ease;
+  padding: 6px 12px;
+  margin-block: 10px 14px;
 }
 
-.roadmap-course:hover {
-  border-color: var(--border-hover);
+.section-row > .actions {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
 }
 
-.roadmap-course .section-heading h3 {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text-primary);
+.course-description {
+  max-width: 75ch;
+  margin-block: 16px;
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
 }
 
-.roadmap-course > p {
+.course-description p {
   font-size: 14px;
+  line-height: 1.6;
   color: var(--text-secondary);
-  margin-block: 4px 8px;
+  margin-bottom: 12px;
 }
 
-.roadmap-course .help {
+.course-description dl {
+  margin: 12px 0;
+}
+
+.course-description dt {
   font-size: 12px;
+  font-weight: 600;
   color: var(--text-muted);
-  font-weight: 500;
+  text-transform: uppercase;
+  margin-top: 8px;
 }
 
-@media (max-width: 700px) {
-  .semester {
-    grid-template-columns: 1fr;
-    gap: 16px;
+.course-description dd {
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-left: 0;
+  margin-bottom: 8px;
+}
+
+.search-page .empty {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-block: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+@media (max-width: 900px) {
+  .search-form {
+    grid-template-columns: 1fr 1fr;
   }
-  .semester > h2 {
-    position: static;
+}
+
+@media (max-width: 600px) {
+  .search-form, .comparison-grid {
+    grid-template-columns: 1fr;
+  }
+  .comparison-tray {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

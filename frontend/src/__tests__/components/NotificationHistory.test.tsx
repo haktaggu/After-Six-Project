@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, waitFor, cleanup } from '@testing-library/react'
+import { render, screen, waitFor, cleanup, fireEvent, act } from '@testing-library/react'
 import NotificationHistory from '../../components/NotificationHistory'
 import * as notifApi from '../../shared/api/notifications'
 
@@ -62,5 +62,36 @@ describe('NotificationHistory', () => {
     const listItems = screen.getAllByRole('listitem')
     expect(listItems[0].textContent).toContain('CMPE-131-01')
     expect(listItems[1].textContent).toContain('CMPE-130-02')
+  })
+
+  it('allows marking an unread notification as read', async () => {
+    const markSpy = vi.spyOn(notifApi, 'markNotificationRead').mockResolvedValue(undefined)
+    vi.spyOn(notifApi, 'listNotifications').mockResolvedValue({
+      items: [
+        {
+          id: 'notif-1',
+          section_id: 'CMPE-131-01',
+          event_type: 'section_opened',
+          status: 'sent',
+          created_at: '2026-11-15T10:00:00Z',
+          sent_at: '2026-11-15T10:00:05Z',
+          is_read: false,
+        },
+      ],
+      total: 1,
+      limit: 10,
+      offset: 0,
+    })
+
+    render(<NotificationHistory />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Mark read')).toBeDefined()
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Mark read'))
+    })
+    expect(markSpy).toHaveBeenCalledWith('notif-1')
   })
 })

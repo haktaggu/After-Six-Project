@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchCsrf, getSession, login, logout } from '../api/accounts'
+import { fetchCsrf, getSession, login, logout, signup } from '../api/accounts'
 import { ApiClientError, clearCsrfToken, SESSION_EXPIRED_EVENT, setCsrfToken } from '../api/client'
-import type { LoginRequest, SessionState } from '../api/types'
+import type { LoginRequest, SessionResponse, SessionState, SignupRequest } from '../api/types'
 
 export interface SessionActions {
   state: SessionState
   refreshSession: () => Promise<void>
   signIn: (body: LoginRequest) => Promise<void>
+  signUp: (body: SignupRequest) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -33,13 +34,13 @@ export function useSession(): SessionActions {
     }
   }, [])
 
-  const signIn = useCallback(async (body: LoginRequest): Promise<void> => {
+  const startSession = useCallback(async (request: () => Promise<SessionResponse>): Promise<void> => {
     const currentRequest = ++requestId.current
     try {
       const { csrf_token } = await fetchCsrf()
       if (currentRequest !== requestId.current) return
       setCsrfToken(csrf_token)
-      const session = await login(body)
+      const session = await request()
       if (currentRequest !== requestId.current) return
       setCsrfToken(session.csrf_token)
       setState({ status: 'authenticated', session, error: null })
@@ -51,6 +52,9 @@ export function useSession(): SessionActions {
       throw error
     }
   }, [])
+
+  const signIn = (body: LoginRequest) => startSession(() => login(body))
+  const signUp = (body: SignupRequest) => startSession(() => signup(body))
 
   const signOut = useCallback(async (): Promise<void> => {
     const currentRequest = ++requestId.current
@@ -92,5 +96,5 @@ export function useSession(): SessionActions {
     return () => window.clearTimeout(timer)
   }, [state])
 
-  return { state, refreshSession, signIn, signOut }
+  return { state, refreshSession, signIn, signUp, signOut }
 }

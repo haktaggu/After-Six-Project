@@ -38,6 +38,7 @@ export interface Profile {
   standing: Standing
   gpa: number | null
   earned_units: number | null
+  recommendation_limit: number
 }
 
 export interface CsrfResponse {
@@ -60,7 +61,11 @@ export interface LoginRequest {
   password: string
 }
 
-export type ProfileUpdate = Profile
+export interface SignupRequest extends LoginRequest {
+  full_name: string
+}
+
+export type ProfileUpdate = Partial<Pick<Profile, 'major_code' | 'recommendation_limit'>>
 
 export interface Term {
   id: string
@@ -128,20 +133,60 @@ export interface Major {
 }
 
 export interface CourseRecord {
+  earned_units?: number | null
   course_id: string
   status: CourseStatus
   grade: Grade | null
   term: string | null
+  section_ids?: string[]
 }
 
 export interface CourseRecordInput {
   status: CourseStatus
   grade: Grade | null
   term: string | null
+  section_ids?: string[]
+  requirement_confirmations?: Record<string, boolean>
+}
+
+export type CalendarSection = Pick<Section, 'id' | 'section_number' | 'title' | 'meetings'>
+
+export interface CalendarCourse {
+  course_id: string
+  title: string
+  term: Term | null
+  status: 'planned' | 'in_progress'
+  sections: CalendarSection[]
 }
 
 export interface EligibilityRequest {
   course_ids: string[]
+}
+
+export interface RequirementConfirmation {
+  id: string
+  text: string
+  confirmed: boolean
+  satisfied?: boolean
+}
+
+export interface CourseRequirementCheck {
+  course_id: string
+  minimum_grade: string | null
+  status: EligibilityStatus
+  recorded_status: CourseStatus | null
+  grade: Grade | null
+  alternative: boolean
+  concurrent?: boolean
+}
+
+export interface EnrollmentRequirement {
+  kind: 'all' | 'any' | 'course' | 'confirmation' | 'check'
+  text: string
+  status: EligibilityStatus
+  children: EnrollmentRequirement[]
+  course?: CourseRequirementCheck | null
+  confirmation?: RequirementConfirmation | null
 }
 
 export interface Eligibility {
@@ -149,6 +194,10 @@ export interface Eligibility {
   status: EligibilityStatus
   reasons: string[]
   missing_course_ids: string[]
+  additional_requirements?: RequirementConfirmation[]
+  course_requirements?: CourseRequirementCheck[]
+  requirements?: EnrollmentRequirement | null
+  source_url?: string | null
 }
 
 export interface EligibilityResponse {
@@ -168,6 +217,7 @@ export interface StudentRoadmapEntry {
   student_status: StudentCourseStatus
   grade: Grade | null
   eligibility: Eligibility
+  prerequisites?: { course_id: string; alternative: boolean }[]
 }
 
 export interface ProgressSummary {
@@ -181,11 +231,28 @@ export interface MajorRoadmap {
   courses: RoadmapEntry[]
 }
 
+export interface RoadmapRequirement {
+  term_order: number
+  label: string
+  units: number | null
+  flexible: boolean
+}
+
+export interface CourseSuggestion {
+  course_id: string
+  title: string
+  status: 'ready' | 'after_current' | 'needs_review' | 'requirements_remaining'
+  reason: string
+}
+
 export interface StudentRoadmap {
   major: Major
   courses: StudentRoadmapEntry[]
+  requirements?: RoadmapRequirement[]
   summary: ProgressSummary
   recommendations: string[]
+  suggestions: CourseSuggestion[]
+  recommendation_limit: number
 }
 
 export interface WatchlistEntry {
@@ -197,10 +264,12 @@ export interface WatchlistEntry {
 export interface NotificationPreferences {
   enabled: boolean
   available: boolean
+  webhook_url?: string | null
 }
 
 export interface PreferencesUpdate {
   enabled: boolean
+  webhook_url?: string | null
 }
 
 export interface Notification {
@@ -210,6 +279,7 @@ export interface Notification {
   status: DeliveryStatus
   created_at: string
   sent_at: string | null
+  is_read?: boolean
 }
 
 export interface PaginationQuery {
@@ -244,7 +314,9 @@ export type SessionState =
   | { status: 'unavailable'; session: null; error: string }
 
 export interface PageProps {
-  onNavigate?: (page: Screen) => void
+  target?: string
+  onNavigate?: (page: Screen, target?: string) => void
   onSessionChanged?: () => void
   onSignIn?: (body: LoginRequest) => Promise<void>
+  onSignUp?: (body: SignupRequest) => Promise<void>
 }

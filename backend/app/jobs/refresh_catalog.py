@@ -1,59 +1,56 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
 from contextlib import closing
 from datetime import datetime, timezone
-import json
+import logging
 import os
 from pathlib import Path
-from urllib.parse import urljoin
-
-from bs4 import BeautifulSoup
+from urllib.parse import urlsplit
 
 from app.db.connection import connect, database_path, init_db
 from app.features import ingest
 from app.jobs.locking import exclusive_worker
+from app.jobs.refresh_roadmap import ROADMAP_INDEX, Roadmap, fetch_roadmap, save_roadmap
 from app.schemas import IngestionDocument, RefreshResult
 
-SOURCES = Path(__file__).resolve().parents[2] / 'demo' / 'sources'
+log = logging.getLogger(__name__)
+CATALOG_HOME = 'https://catalog.sjsu.edu/'
+
+
+def refresh_roadmap_catalog(path: Path, fetch_html: Callable[[str], str]) -> RefreshResult:
+    roadmap = fetch_roadmap(os.environ.get('ROADMAP_SOURCE_URL') or ROADMAP_INDEX, fetch_html)
+    courses = []
+    for entry in roadmap.courses:
+        try:
+            course = ingest.parse_catalog(fetch_html(entry.url), entry.url).courses[0]
+            if course.course.id != entry.course_id:
+                raise ValueError(f'Catalog detail did not match {entry.course_id}')
+        except (ValueError, OSError, ingest.SourceUnavailable) as error:
+            raise ingest.SourceUnavailable(f'{entry.course_id}: {error}; cached roadmap and catalog retained') from error
+        courses.append(course)
+        log.info('Fetched %s (%s/%s)', entry.course_id, len(courses), len(roadmap.courses))
+
+    document = IngestionDocument(terms=[], courses=courses, sections=[])
+    return save_catalog(path, document, roadmap)
 
 
 def refresh_catalog(path: Path) -> RefreshResult:
-    courses = {}
-    if os.environ.get('CATALOG_INPUT', 'live') == 'snapshot' or os.environ.get('DATA_MODE', 'live') == 'replay':
-        folder = Path(os.environ.get('CATALOG_SNAPSHOT_DIR', str(SOURCES / 'catalog')))
-        entries = json.loads((folder / 'manifest.json').read_text())
-        for entry in entries:
-            doc = ingest.parse_catalog((folder / entry['file']).read_text(), entry['url'])
-            courses.update({c.course.id: c for c in doc.courses})
-    else:
-        url = os.environ.get('CATALOG_SOURCE_URL', 'https://catalog.sjsu.edu/')
-        queue = [url]
-        visited = set()
-        while queue:
-            url = queue.pop(0)
-            if url in visited:
-                continue
-            visited.add(url)
-            html = ingest.fetch_source(url)
-            soup = BeautifulSoup(html, 'html.parser')
-            title = soup.select_one('#course_preview_title')
-            if title:
-                doc = ingest.parse_catalog(html, url)
-                courses.update({c.course.id: c for c in doc.courses})
-                continue
-            for link in soup.select('a[href]'):
-                href = urljoin(url, link['href'])
-                text = link.get_text(' ', strip=True).lower()
-                if 'preview_course' in href or 'course descriptions' in text or 'filter[cpage]' in href or 'filter%5Bcpage%5D' in href:
-                    ingest.check_source(href)
-                    if href not in visited and href not in queue:
-                        queue.append(href)
-    if not courses:
+    url = os.environ.get('CATALOG_SOURCE_URL') or CATALOG_HOME
+    if urlsplit(url).path in ('/preview_course.php', '/preview_course_nopop.php'):
+        return save_catalog(path, ingest.parse_catalog(ingest.fetch_source(url), url))
+    return refresh_roadmap_catalog(path, ingest.fetch_source)
+
+
+def save_catalog(path: Path, document: IngestionDocument, roadmap: Roadmap | None = None) -> RefreshResult:
+    if not document.courses:
         raise ValueError('Catalog import produced no courses; cached catalog retained')
     with closing(connect(path)) as db, db:
         db.execute('BEGIN IMMEDIATE')
-        count = ingest.upsert_catalog(db, IngestionDocument(terms=[], courses=list(courses.values()), sections=[]))
+        count = ingest.upsert_catalog(db, document)
+        if roadmap is not None:
+            save_roadmap(db, roadmap)
     return RefreshResult(updated_records=count, event_ids=[], checked_at=datetime.now(timezone.utc).isoformat())
 
 

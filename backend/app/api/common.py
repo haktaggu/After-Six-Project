@@ -41,7 +41,7 @@ def require_csrf(request: Request, db: DatabaseDep) -> None:
                 if session_cookie else request.cookies.get(CSRF_COOKIE))
     if not expected:
         raise ApiProblem(403, "CSRF_FAILED", "CSRF token required")
-    validate_csrf_token(submitted, expected)
+    validate_csrf_token(db, submitted, expected)
 
 def problem_response(problem: ApiProblem) -> JSONResponse:
     body = ErrorResponse(error=ApiError(code=problem.code,message=problem.message,fields=problem.fields))

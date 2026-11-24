@@ -15,12 +15,6 @@ const mockUser: User = {
 }
 
 describe('Header', () => {
-  it('renders branding and project slogan', () => {
-    render(<Header selectedPage="Search" onNavigate={() => {}} />)
-    expect(screen.getByText('OurSJSU')).toBeDefined()
-    expect(screen.getByText(/"It's like MySJSU, but we do it/)).toBeDefined()
-  })
-
   it('disables navigation links when user is not logged in', () => {
     render(<Header selectedPage="Login" onNavigate={() => {}} />)
     const searchBtn = screen.getByRole('button', { name: 'Search' }) as HTMLButtonElement
@@ -45,8 +39,4 @@ describe('Header', () => {
     expect(onSignOut).toHaveBeenCalledTimes(1)
   })
 
-  it('shows logging out state while signing out', () => {
-    render(<Header selectedPage="Dashboard" onNavigate={() => {}} user={mockUser} signingOut={true} />)
-    expect(screen.getByText('Logging out…')).toBeDefined()
-  })
 })

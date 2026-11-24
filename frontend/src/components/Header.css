@@ -1,7 +1,7 @@
 .site-header {
-  background: #ffffff;
-  border-bottom: 2px solid var(--gold);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  background: var(--navy);
+  color: var(--surface);
+  border-bottom: 3px solid var(--gold);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -12,8 +12,8 @@
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 32px;
-  padding-block: 14px;
+  gap: 24px;
+  padding-block: 12px;
 }
 
 .brand-lockup {
@@ -21,21 +21,17 @@
 }
 
 .brand {
-  font-family: 'Cinzel', Georgia, serif;
-  color: var(--blue);
-  font-size: 30px;
+  font-size: 1.5rem;
   font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.1;
+  line-height: 1.2;
   display: block;
 }
 
 .brand-subtitle {
   margin-top: 2px;
-  font-size: 12px;
+  font-size: var(--font-meta);
   line-height: 1.4;
-  color: var(--text-muted);
-  font-style: italic;
+  color: #d0dae4;
   max-width: none;
 }
 
@@ -43,30 +39,28 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .site-header nav button {
   background: transparent;
-  color: var(--text-secondary);
+  color: inherit;
   border: 0;
-  border-radius: var(--radius-pill);
-  min-height: 36px;
-  padding: 6px 14px;
-  font-size: 14px;
-  font-weight: 500;
-  box-shadow: none;
-  transition: all 0.15s ease;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  min-height: 38px;
+  padding: 6px 10px;
+  font-size: var(--font-label);
+  font-weight: 400;
 }
 
 .site-header nav button:hover:not(:disabled) {
-  background: var(--surface-hover);
-  color: var(--blue);
+  background: #284962;
+  color: inherit;
 }
 
 .site-header nav button[aria-current="page"] {
-  background: rgba(0, 85, 162, 0.08);
-  color: var(--blue);
+  border-bottom-color: var(--gold);
   font-weight: 700;
 }
 
@@ -77,29 +71,37 @@
 }
 
 .auth-actions button {
-  background: var(--surface);
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  min-height: 36px;
-  padding: 6px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  box-shadow: var(--shadow-xs);
-  transition: all 0.15s ease;
+  background: transparent;
+  color: inherit;
+  border-color: #879aac;
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: var(--font-meta);
 }
 
 .auth-actions button:hover:not(:disabled) {
-  background: var(--surface-hover);
-  color: var(--blue);
-  border-color: var(--border-hover);
+  background: #284962;
+  color: inherit;
+  border-color: #b5c4d0;
+}
+
+.auth-actions button[aria-current="page"] {
+  border-color: var(--gold);
+}
+
+.site-header button:focus-visible {
+  outline-color: var(--gold);
 }
 
 @media (max-width: 960px) {
+  .site-header {
+    position: static;
+  }
+
   .site-header .header-content {
     grid-template-columns: 1fr auto;
-    gap: 12px;
-    padding-block: 12px;
+    gap: 6px 12px;
+    padding-block: 10px;
   }
   .site-header nav {
     grid-column: 1 / -1;
@@ -113,7 +115,7 @@
 
 @media (max-width: 560px) {
   .brand {
-    font-size: 24px;
+    font-size: 1.375rem;
   }
   .brand-subtitle {
     display: none;
@@ -121,11 +123,8 @@
   .site-header .header-content {
     column-gap: 8px;
   }
-  .site-header nav {
-    gap: 4px;
-  }
   .site-header nav button {
-    padding: 6px 10px;
-    font-size: 13px;
+    padding: 6px 7px;
+    font-size: var(--font-meta);
   }
 }

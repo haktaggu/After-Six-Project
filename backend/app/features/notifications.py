@@ -13,6 +13,22 @@ def discord_available() -> bool:
     return notification_providers.valid_destination(os.environ.get('DISCORD_WEBHOOK_URL', ''))
 
 
+def process_notifications(db: Database) -> int:
+    rows = db.execute('SELECT id,section_id,previous_seats,new_seats,detected_at FROM availability_events WHERE processed_at IS NULL ORDER BY detected_at,id').fetchall()
+    for row in rows:
+        event = SeatOpeningEvent(**dict(zip(('id', 'section_id', 'previous_seats', 'new_seats', 'detected_at'), row)))
+        dispatch_opening_event(db, event)
+    rows = db.execute("SELECT id,event_id,student_id,section_id,message FROM notification_logs WHERE status='pending' ORDER BY created_at,id").fetchall()
+    for row in rows:
+        target = DeliveryTarget(**dict(zip(('delivery_id', 'event_id', 'student_id', 'section_id', 'message'), row)))
+        try:
+            deliver_notification(db, target)
+        except Exception:
+            with db:
+                db.execute("UPDATE notification_logs SET status='failed',sent_at=NULL,last_error='DELIVERY_ERROR' WHERE id=? AND status='pending'", (target.delivery_id,))
+    return len(rows)
+
+
 def dispatch_opening_event(db: Database, event: SeatOpeningEvent) -> int:
     with db:
         db.execute('BEGIN IMMEDIATE')
@@ -45,7 +61,9 @@ def deliver_notification(db: Database, target: DeliveryTarget) -> DeliveryResult
         raise ApiProblem(404, 'NOT_FOUND', 'Delivery not found')
     if row[0] != 'pending':
         return DeliveryResult(accepted=row[0] == 'sent', error_code=row[2])
-    result = notification_providers.send_discord(os.environ.get('DISCORD_WEBHOOK_URL', ''), row[1], target.delivery_id)
+    pref = db.execute('SELECT webhook_url FROM notification_preferences WHERE student_id=?', (target.student_id,)).fetchone()
+    dest = (pref[0] if pref and pref[0] else None) or os.environ.get('DISCORD_WEBHOOK_URL', '')
+    result = notification_providers.send_discord(dest, row[1], target.delivery_id)
     with db:
         db.execute('UPDATE notification_logs SET status=?,sent_at=?,last_error=? WHERE id=? AND status=?',
                    ('sent' if result.accepted else 'failed', datetime.now(timezone.utc).isoformat() if result.accepted else None,

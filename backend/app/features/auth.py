@@ -4,10 +4,12 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
 import os
+import re
 import secrets
+from uuid import uuid4
 
 from app.errors import ApiProblem
-from app.schemas import AuthenticatedStudent, Database, LoginRequest, SessionGrant, SessionIdentity, SessionResponse, User
+from app.schemas import AuthenticatedStudent, Database, LoginRequest, SessionGrant, SessionIdentity, SessionResponse, SignupRequest, User
 
 
 def hash_password(password: str) -> str:
@@ -32,11 +34,34 @@ def verify_password(password: str, stored_hash: str) -> bool:
 DUMMY_HASH = hash_password(secrets.token_urlsafe(32))
 
 
-def session_secret() -> bytes:
-    secret = os.environ.get('SESSION_SECRET', '').encode()
-    if len(secret) < 32:
-        raise ValueError('SESSION_SECRET must contain at least 32 bytes. See README setup.')
-    return secret
+def register_user(db: Database, body: SignupRequest) -> User:
+    name = body.full_name.strip()
+    email = body.email.strip().lower()
+    if not name or not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', email):
+        raise ApiProblem(422, 'VALIDATION_ERROR', 'Enter a name and a valid email address')
+    user = User(id=str(uuid4()), email=email, full_name=name, created_at=datetime.now(timezone.utc).isoformat())
+    password_hash = hash_password(body.password)
+    with db:
+        db.execute('BEGIN IMMEDIATE')
+        if db.execute('SELECT 1 FROM users WHERE lower(email)=?', (email,)).fetchone():
+            raise ApiProblem(409, 'ACCOUNT_EXISTS', 'An account already exists for that email')
+        db.execute(
+            'INSERT INTO users (id,username,email,full_name,password_hash,created_at) VALUES (?,?,?,?,?,?)',
+            (user.id, user.id, email, name, password_hash, user.created_at),
+        )
+        db.execute('INSERT INTO student_profiles (student_id,user_id,recommendation_limit) VALUES (?,?,?)',
+                   (user.id, user.id, 4))
+    return user
+
+
+def session_secret(db: Database) -> bytes:
+    configured = os.environ.get('SESSION_SECRET')
+    if configured:
+        secret = configured.encode()
+        if len(secret) < 32:
+            raise ValueError('SESSION_SECRET must contain at least 32 bytes.')
+        return secret
+    return db.execute('SELECT secret FROM session_signing_key WHERE id=1').fetchone()[0]
 
 
 def authenticate_user(db: Database, body: LoginRequest) -> User:
@@ -52,7 +77,7 @@ def create_session(db: Database, user_id: str) -> SessionGrant:
     token = secrets.token_urlsafe(32)
     now = datetime.now(timezone.utc)
     expires = (now + timedelta(hours=8)).isoformat()
-    csrf = issue_csrf_token()
+    csrf = issue_csrf_token(db)
     with db:
         db.execute('DELETE FROM sessions WHERE user_id=?', (user_id,))
         db.execute('INSERT INTO sessions VALUES (?,?,?,?,?)',
@@ -79,16 +104,16 @@ def revoke_session(db: Database, cookie_token: str) -> None:
         db.execute('DELETE FROM sessions WHERE token=?', (hashlib.sha256(cookie_token.encode()).hexdigest(),))
 
 
-def issue_csrf_token() -> str:
+def issue_csrf_token(db: Database) -> str:
     nonce = secrets.token_urlsafe(32)
-    signature = hmac.new(session_secret(), nonce.encode(), hashlib.sha256).hexdigest()
+    signature = hmac.new(session_secret(db), nonce.encode(), hashlib.sha256).hexdigest()
     return f'{nonce}.{signature}'
 
 
-def validate_csrf_token(submitted: str | None, expected: str | None) -> None:
+def validate_csrf_token(db: Database, submitted: str | None, expected: str | None) -> None:
     if submitted and expected and hmac.compare_digest(submitted.encode(), expected.encode()):
         nonce, sep, signature = submitted.partition('.')
-        digest = hmac.new(session_secret(), nonce.encode(), hashlib.sha256).hexdigest()
+        digest = hmac.new(session_secret(db), nonce.encode(), hashlib.sha256).hexdigest()
         if sep and hmac.compare_digest(signature.encode(), digest.encode()):
             return
     raise ApiProblem(403, 'CSRF_FAILED', 'Refresh the page and try again')

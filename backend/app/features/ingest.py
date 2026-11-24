@@ -9,10 +9,14 @@ from uuid import uuid4
 
 from bs4 import BeautifulSoup
 
-from app.features.prerequisites import parse_requirement_rule
-from app.schemas import Course, Database, ImportedCourse, IngestionDocument, RefreshResult, RequirementRule, SeatOpeningEvent, Section, Term
+from app.features.prerequisites import parse_course_requirements
+from app.schemas import Course, Database, ImportedCourse, IngestionDocument, RefreshResult, SeatOpeningEvent, Section, Term
 
 SOURCE_HOSTS = {'catalog.sjsu.edu', 'www.sjsu.edu', 'sjsu.edu'}
+
+
+class SourceUnavailable(RuntimeError):
+    """The source returned a response the importer cannot use."""
 
 
 class OfficialRedirect(HTTPRedirectHandler):
@@ -31,6 +35,11 @@ def fetch_source(url: str) -> str:
     check_source(url)
     req = Request(url, headers={'User-Agent': 'OurSJSU/0.1 (student course planning project)', 'Accept': 'text/html'})
     with build_opener(OfficialRedirect()).open(req, timeout=10) as res:
+        challenge = res.headers.get('x-amzn-waf-action')
+        if challenge and challenge.lower() in ('challenge', 'captcha'):
+            raise SourceUnavailable(f'{urlsplit(url).hostname} requires browser verification (HTTP {res.status}); cached data retained')
+        if res.status == 202:
+            raise SourceUnavailable(f'{urlsplit(url).hostname} returned HTTP 202 instead of the source page; cached data retained')
         if res.status != 200:
             raise ValueError(f'Source returned HTTP {res.status}; cached data retained')
         buf = res.read(5 * 1024 * 1024 + 1)
@@ -38,7 +47,7 @@ def fetch_source(url: str) -> str:
             raise ValueError('Source exceeds the 5 MiB limit')
         html = buf.decode(res.headers.get_content_charset() or 'utf-8')
     if not html.strip() or 'awswaf' in html.lower() or 'captcha' in html.lower() or 'verify you are human' in html.lower():
-        raise ValueError('Source is empty or requires browser verification')
+        raise SourceUnavailable(f'{urlsplit(url).hostname} returned an empty page or requires browser verification; cached data retained')
     return html
 
 
@@ -54,12 +63,8 @@ def normalize_course(raw: dict[str, object]) -> ImportedCourse:
     for field in ('description', 'units_min', 'units_max', 'prerequisite_text', 'corequisite_text', 'restrictions_text', 'catalog_url'):
         data.setdefault(field, None)
     course = Course.model_validate(data)
-    clauses = [parse_requirement_rule(t) for t in (course.prerequisite_text, course.corequisite_text, course.restrictions_text) if t]
-    rule = RequirementRule(kind='all', text='Course requirements', children=clauses) if clauses else parse_requirement_rule(None, confirmed_empty=bool(confirmed))
-    # Corequisites cannot become satisfied just because a matching past attempt exists.
-    if course.corequisite_text:
-        idx = 1 if course.prerequisite_text else 0
-        rule.children[idx] = RequirementRule(kind='unknown', text=course.corequisite_text)
+    rule = parse_course_requirements(course.id, course.prerequisite_text, course.corequisite_text,
+                                     course.restrictions_text, confirmed_empty=bool(confirmed))
     return ImportedCourse(course=course, prerequisite_rule=rule)
 
 
@@ -80,12 +85,14 @@ def parse_catalog(html: str, source_url: str) -> IngestionDocument:
             break
         chunks.append(str(node))
     body = BeautifulSoup(''.join(chunks), 'html.parser')
+    for tag in body.select('script, style, [hidden], [aria-hidden="true"]'):
+        tag.decompose()
     text = body.get_text('\n', strip=True)
     raw = dict(subject=match[1], catalog_number=match[2], title=match[3], catalog_url=source_url)
     units = re.search(r'(\d+(?:\.\d+)?)\s*(?:[-–]\s*(\d+(?:\.\d+)?))?\s*(?:unit(?:s|\(s\))?|credits?)', text, re.I)
     raw['units_min'] = float(units[1]) if units else None
     raw['units_max'] = float(units[2] or units[1]) if units else None
-    labels = r'Prerequisite\(s\)|Prerequisites?|Corequisite\(s\)|Corequisites?|Restrictions?|Grading|Repeatable|Satisfies|Misc/Lab Fee|Note'
+    labels = r'Prerequisite\(s\)|Prerequisites?|Corequisite\(s\)|Corequisites?|Restrictions?|Grading|Repeatable|Satisfies|Misc/Lab(?: Fee)?|Notes?'
     matches = list(re.finditer(r'(?im)^(' + labels + r')\s*:', text))
     description = text[:matches[0].start()].strip() if matches else text.strip()
     raw['description'] = description[units.end():].strip() if units else description
@@ -172,14 +179,18 @@ def schedule_rows(html: str) -> list[dict[str, object]]:
 def parse_schedule(html: str, term: str, source_url: str) -> IngestionDocument:
     rows = schedule_rows(html)
     now = datetime.now(timezone.utc).isoformat()
-    sections = []
+    sections = {}
     # Course linkage is completed by the job using the persisted, verified catalog.
     for row in rows:
         raw = dict(row)
         course = Course(id=raw.pop('course_id'), subject=raw.pop('subject'), catalog_number=raw.pop('catalog_number'), title=raw['title'],
                         description=None, units_min=None, units_max=None, prerequisite_text=None, corequisite_text=None, restrictions_text=None, catalog_url=raw.pop('catalog_url'))
-        sections.append(normalize_section(raw, course, term, source_url, now))
-    return IngestionDocument(terms=[Term(id=term, name=term.replace('-', ' ').title())], courses=[], sections=sections)
+        section = normalize_section(raw, course, term, source_url, now)
+        previous = sections.get(section.id)
+        if previous is not None and previous != section:
+            raise ValueError(f'Schedule has conflicting rows for {section.id}')
+        sections[section.id] = section
+    return IngestionDocument(terms=[Term(id=term, name=term.replace('-', ' ').title())], courses=[], sections=list(sections.values()))
 
 
 def upsert_catalog(db: Database, document: IngestionDocument) -> int:
@@ -205,7 +216,8 @@ def upsert_catalog(db: Database, document: IngestionDocument) -> int:
     return len(document.courses)
 
 
-def upsert_sections(db: Database, document: IngestionDocument, checked_at: str) -> RefreshResult:
+def upsert_sections(db: Database, document: IngestionDocument, checked_at: str, *,
+                    detect_openings: bool = True) -> RefreshResult:
     ids = [s.id for s in document.sections]
     if len(ids) != len(set(ids)):
         raise ValueError('Schedule contains duplicate section IDs')
@@ -215,7 +227,7 @@ def upsert_sections(db: Database, document: IngestionDocument, checked_at: str) 
     upsert_catalog(db, IngestionDocument(terms=document.terms, courses=[], sections=[]))
     events = []
     for section in document.sections:
-        prev = db.execute('SELECT open_seats FROM sections WHERE id=?', (section.id,)).fetchone()
+        prev = db.execute('SELECT open_seats FROM sections WHERE id=?', (section.id,)).fetchone() if detect_openings else None
         data = section.model_dump(exclude={'course', 'meetings', 'instructors', 'availability', 'is_stale'})
         data['course_id'] = section.course.id
         data['last_checked_at'] = checked_at
@@ -227,9 +239,10 @@ def upsert_sections(db: Database, document: IngestionDocument, checked_at: str) 
         db.executemany('INSERT INTO meetings (section_id,days_json,start_time,end_time,location,is_tba) VALUES (?,?,?,?,?,?)',
                        [(section.id, json.dumps(m.days), m.start_time, m.end_time, m.location, int(m.is_tba)) for m in section.meetings])
         db.executemany('INSERT INTO instructors (section_id,name) VALUES (?,?)', [(section.id, i.name) for i in section.instructors])
-        event = record_opening_event(db, section.id, prev[0] if prev else None, section.open_seats, checked_at)
-        if event:
-            events.append(event.id)
+        if prev is not None:
+            event = record_opening_event(db, section.id, prev[0], section.open_seats, checked_at)
+            if event:
+                events.append(event.id)
     return RefreshResult(updated_records=len(ids), event_ids=events, checked_at=checked_at)
 
 

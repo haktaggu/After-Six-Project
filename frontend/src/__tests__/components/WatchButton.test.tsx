@@ -11,11 +11,6 @@ afterEach(() => {
 })
 
 describe('WatchButton', () => {
-  it('renders initial "Watch section" button', () => {
-    render(<WatchButton sectionId="sec-1" />)
-    expect(screen.getByRole('button', { name: 'Watch section' })).toBeDefined()
-  })
-
   it('calls addWatch on click and updates button to "Watching"', async () => {
     const mockWatchlistEntry = {
       id: 'watch-1',

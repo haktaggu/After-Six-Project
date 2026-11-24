@@ -6,22 +6,24 @@ import { ErrorNotice, Pagination } from './Feedback'
 export default function NotificationHistory() {
   const [offset, setOffset] = useState(0)
   const [pendingId, setPendingId] = useState<string | null>(null)
+  const [markError, setMarkError] = useState<unknown>(null)
   const { data, error, loading, reload } = useLoad(useCallback(() => listNotifications({ limit: 10, offset }), [offset]))
 
   async function handleMarkRead(id: string) {
     setPendingId(id)
+    setMarkError(null)
     try {
       await markNotificationRead(id)
       reload()
-    } catch {
-      // ignore
+    } catch (err) {
+      setMarkError(err)
     } finally {
       setPendingId(null)
     }
   }
 
   return <section className="notification-history"><div className="results-heading"><h2>Recent alerts</h2><button disabled={loading} onClick={reload}>Refresh alerts</button></div>
-    <ErrorNotice error={error} />{loading && <p role="status">Loading alerts…</p>}
+    <ErrorNotice error={error} /><ErrorNotice error={markError} />{loading && <p role="status">Loading alerts…</p>}
     {data && <>{!data.items.length && !loading && <p className="empty">No alerts yet.</p>}
       <ul className="notification-list">{data.items.map(n => <li key={n.id} className={n.is_read ? 'read' : 'unread'}>
         <div>

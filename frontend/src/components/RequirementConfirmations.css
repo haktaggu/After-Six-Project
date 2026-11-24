@@ -1,0 +1,102 @@
+.course-requirements {
+  min-width: 0;
+  margin: 0;
+  padding: 1rem 0 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.course-requirements legend {
+  padding: 0 0.75rem 0 0;
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.course-requirements h3 {
+  font-size: var(--font-label);
+  margin-bottom: 0.25rem;
+}
+
+.course-prerequisites ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.course-requirement-check {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding-block: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--font-label);
+}
+
+.course-requirement-check > div {
+  min-width: 0;
+}
+
+.course-requirement-result {
+  text-transform: capitalize;
+}
+
+.requirement-save-note,
+.requirement-source {
+  margin-block: 0.75rem;
+}
+
+.requirement-group {
+  margin-top: 0.875rem;
+}
+
+.requirement-group-items {
+  display: grid;
+  gap: 0.75rem;
+  padding-inline-start: 0.875rem;
+  border-inline-start: 1px solid var(--border);
+}
+
+.requirement-group-items > .requirement-group {
+  margin-top: 0;
+}
+
+.requirement-operator {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-meta);
+  font-weight: 700;
+}
+
+.requirement-condition .requirement-field {
+  margin-top: 0;
+}
+
+.course-prerequisites + .requirement-confirmations {
+  margin-top: 1.25rem;
+}
+
+.requirement-field {
+  margin-top: 0.875rem;
+  max-width: 42rem;
+}
+
+.record-form .requirement-field label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+  min-width: 0;
+  font-size: var(--font-label);
+}
+
+.requirement-field label > span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.requirement-field select {
+  width: 100%;
+  max-width: 22rem;
+}

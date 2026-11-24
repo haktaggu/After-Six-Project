@@ -1,103 +1,99 @@
-import { useCallback, useState } from 'react'
-import { getProfile, updateProfile, listCourseRecords, putCourseRecord, deleteCourseRecord } from '../shared/api/accounts'
-import { listCourses, listTerms } from '../shared/api/courses'
-import { listMajors } from '../shared/api/planning'
-import { allPages } from '../shared/api/lookups'
+import { useCallback, useEffect } from 'react'
+import { getProfile, subscribeToAcademicPlanChanges } from '../shared/api/accounts'
+import { getStudentRoadmap } from '../shared/api/planning'
+import { listWatchlist } from '../shared/api/watchlist'
+import { ApiClientError } from '../shared/api/client'
 import { useLoad } from '../shared/hooks/useLoad'
-import type { CourseRecord, CourseStatus, Grade, ProfileResponse, Standing, Term } from '../shared/api/types'
-import { ErrorNotice, Pagination } from '../components/Feedback'
+import type { PageProps } from '../shared/api/types'
+import { ErrorNotice } from '../components/Feedback'
+import CourseSuggestions from '../components/CourseSuggestions'
+import ClassSchedule from '../components/ClassSchedule'
+import './Dashboard.css'
 
-const grades: Grade[] = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-', 'F', 'CR', 'NC', 'WU', 'IC', 'W', 'I', 'RP', 'RD', 'AU']
+export default function Dashboard({ onNavigate }: PageProps) {
+  const { data: profile, error: profileError, loading: profileLoading, reload: reloadProfile } = useLoad(getProfile)
+  const academics = profile?.profile
+  const roadmap = useLoad(getStudentRoadmap)
+  const { reload: reloadRoadmap } = roadmap
+  const watchlist = useLoad(useCallback((signal: AbortSignal) => listWatchlist({ limit: 3 }, signal), []))
+  const progress = roadmap.data?.summary
+  const needsMajor = roadmap.error instanceof ApiClientError && roadmap.error.code === 'PROFILE_INCOMPLETE'
 
-function RecordEditor({ record, courseId, terms, onSaved, onRemoved }: { record?: CourseRecord; courseId: string; terms: Term[]; onSaved: () => void; onRemoved?: () => void }) {
-  const [status, setStatus] = useState<CourseStatus>(record?.status ?? 'planned')
-  const [grade, setGrade] = useState<Grade | ''>(record?.grade ?? '')
-  const [pending, setPending] = useState(false)
-  const [error, setError] = useState<unknown>(null)
-  const [notice, setNotice] = useState('')
-  async function save(form: HTMLFormElement) {
-    setPending(true); setError(null); setNotice('')
-    try {
-      const fields = new FormData(form)
-      await putCourseRecord(courseId, { status, grade: status === 'completed' ? grade || null : null, term: String(fields.get('term') || '') || null })
-      setNotice('Course record saved.'); onSaved()
-    } catch (err) { setError(err) }
-    finally { setPending(false) }
-  }
-  async function remove() {
-    setPending(true); setError(null)
-    try { await deleteCourseRecord(courseId); (onRemoved ?? onSaved)() }
-    catch (err) { setError(err) }
-    finally { setPending(false) }
-  }
-  return <form className="record-form" onSubmit={e => { e.preventDefault(); void save(e.currentTarget) }}>
-    <label>Status<select value={status} onChange={e => { setStatus(e.target.value as CourseStatus); setGrade('') }}>
-      <option value="planned">Planned</option><option value="in_progress">In progress</option><option value="completed">Completed</option>
-    </select></label>
-    {status === 'completed' && <label>Grade<select value={grade} onChange={e => setGrade(e.target.value as Grade | '')}><option value="">Unknown</option>{grades.map(g => <option key={g}>{g}</option>)}</select></label>}
-    <label>Term<select name="term" defaultValue={record?.term ?? ''}><option value="">Not specified</option>{terms.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
-    <div className="actions"><button type="submit" disabled={pending || !courseId}>{pending ? 'Saving…' : record ? 'Save changes' : 'Add course'}</button>
-      {record && <button type="button" disabled={pending} onClick={() => { void remove() }}>Remove record</button>}</div>
-    <ErrorNotice error={error} />{notice && <p role="status">{notice}</p>}
-  </form>
-}
+  useEffect(() => subscribeToAcademicPlanChanges(() => {
+    reloadProfile()
+    reloadRoadmap()
+  }), [reloadProfile, reloadRoadmap])
 
-export default function Dashboard() {
-  const [offset, setOffset] = useState(0)
-  const [query, setQuery] = useState('')
-  const [courseId, setCourseId] = useState('')
-  const [courseOffset, setCourseOffset] = useState(0)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<unknown>(null)
-  const [notice, setNotice] = useState('')
-  const load = useCallback(async () => {
-    const [profile, majors, terms, records] = await Promise.all([getProfile(), allPages(listMajors), allPages(listTerms), listCourseRecords({ limit: 10, offset })])
-    return { profile, majors, terms, records }
-  }, [offset])
-  const { data, error: loadError, loading, reload } = useLoad(load)
-  const courses = useLoad(useCallback(() => listCourses({ q: query, limit: 25, offset: courseOffset }), [query, courseOffset]))
-  async function saveProfile(form: HTMLFormElement) {
-    setSaving(true); setError(null); setNotice('')
-    const fields = new FormData(form)
-    try {
-      const gpa = String(fields.get('gpa') ?? '').trim()
-      const units = String(fields.get('earned_units') ?? '').trim()
-      await updateProfile({ major_code: String(fields.get('major_code') || '') || null, standing: String(fields.get('standing')) as Standing,
-        gpa: gpa === '' ? null : Number(gpa), earned_units: units === '' ? null : Number(units) })
-      setNotice('Academic profile saved. Roadmap and watchlist eligibility will use these values.'); reload()
-    } catch (err) { setError(err) }
-    finally { setSaving(false) }
-  }
-  function refreshHistory() {
-    if (data?.records.items.length === 1 && offset > 0) setOffset(Math.max(0, offset - 10))
-    else reload()
-  }
-  const profile: ProfileResponse | undefined = data?.profile
-  return <section>
-    <div className="page-heading"><h1>Dashboard</h1><button disabled={loading} onClick={reload}>Refresh</button></div>
-    <ErrorNotice error={loadError} />{loading && <p role="status">Loading student overview…</p>}
-    {profile && data && <>
-      <section className="profile-section"><h2>{profile.user.full_name}</h2><p>{profile.user.email}</p>
-        <form key={JSON.stringify(profile.profile)} onSubmit={e => { e.preventDefault(); void saveProfile(e.currentTarget) }}>
-          <div className="form-grid">
-            <label>Major<select name="major_code" defaultValue={profile.profile.major_code ?? ''}><option value="">Not selected</option>{data.majors.map(m => <option key={m.major_code} value={m.major_code}>{m.title} {m.degree_type}</option>)}</select></label>
-            <label>Class standing<select name="standing" defaultValue={profile.profile.standing}>{(['unspecified', 'freshman', 'sophomore', 'junior', 'senior', 'graduate'] as Standing[]).map(s => <option key={s} value={s}>{s === 'unspecified' ? 'Unknown' : s[0].toUpperCase() + s.slice(1)}</option>)}</select></label>
-            <label>Cumulative GPA<input name="gpa" type="number" min="0" max="4" step="0.01" defaultValue={profile.profile.gpa ?? ''} placeholder="Unknown" /></label>
-            <label>Total earned units<input name="earned_units" type="number" min="0" max="250" step="1" defaultValue={profile.profile.earned_units ?? ''} placeholder="Unknown" /></label>
+  return (
+    <section className="dashboard">
+      <div className="page-heading">
+        <h1>Dashboard</h1>
+        <button onClick={() => onNavigate?.('Add Course')}>Add a course</button>
+      </div>
+      <div className="dashboard-overview">
+      <section aria-labelledby="academic-summary">
+        <h2 id="academic-summary">Academic summary</h2>
+        <ErrorNotice error={profileError} />
+        {profileLoading && <p role="status">Loading academic summary…</p>}
+        {academics && (
+          <dl className="academic-summary">
+            <div><dt>Cumulative GPA</dt><dd>{academics.gpa?.toFixed(2) ?? 'Unknown'}</dd></div>
+            <div><dt>Earned units</dt><dd>{academics.earned_units ?? 'Unknown'}</dd></div>
+            <div><dt>Class standing</dt><dd className="class-standing">{academics.standing === 'unspecified' ? 'Unknown' : academics.standing}</dd></div>
+          </dl>
+        )}
+        <button onClick={() => onNavigate?.('Course History')}>Course history</button>
+      </section>
+      <section aria-labelledby="degree-progress">
+        <h2 id="degree-progress">Degree progress</h2>
+        {roadmap.loading && <p role="status">Loading degree progress…</p>}
+        {needsMajor ? <p>Choose your major to see your degree progress.</p> : <ErrorNotice error={roadmap.error} />}
+        {progress && roadmap.data && (
+          <div className="dashboard-progress-summary">
+            <p>{roadmap.data.major.title} {roadmap.data.major.degree_type}</p>
+            <p className="dashboard-progress-count">
+              <span>{progress.completed_courses} of {progress.total_required_courses} required courses completed</span>
+              <strong>{progress.completion_percent.toFixed(0)}%</strong>
+            </p>
+            <progress aria-label="Required courses completed" max={100} value={progress.completion_percent} />
           </div>
-          <button className="primary" disabled={saving}>{saving ? 'Saving…' : 'Save academic profile'}</button><ErrorNotice error={error} />{notice && <p className="notice" role="status">{notice}</p>}
-        </form>
+        )}
+        <button onClick={() => onNavigate?.(needsMajor ? 'Profile' : 'Roadmap')}>
+          {needsMajor ? 'Choose your major' : 'Open roadmap'}
+        </button>
       </section>
-      <section><h2>Course history</h2>
-        {!data.records.items.length && !loading && <p className="empty">No course records yet. Add a course below.</p>}
-        {data.records.items.map(r => <details className="history-row" key={JSON.stringify(r)}><summary><strong>{r.course_id}</strong><div><span className={`status ${r.status}`}>{r.status.replace('_', ' ')}</span>{r.grade && <span className="status grade">Grade: {r.grade}</span>}</div></summary><RecordEditor record={r} courseId={r.course_id} terms={data.terms} onSaved={reload} onRemoved={refreshHistory} /></details>)}
-        <Pagination total={data.records.total} offset={offset} limit={10} loading={loading} onPage={setOffset} />
-      </section>
-      <section className="add-course-card"><h2>Add a course</h2><label>Find a catalog course<input type="search" value={query} onChange={e => { setQuery(e.target.value); setCourseOffset(0); setCourseId('') }} placeholder="Course code or title" /></label>
-        <ErrorNotice error={courses.error} />{courses.loading && <p role="status">Finding courses…</p>}
-        {courses.data && <><label>Course<select value={courseId} onChange={e => setCourseId(e.target.value)}><option value="">Select a course</option>{courses.data.items.map(c => <option key={c.id} value={c.id}>{c.id} · {c.title}</option>)}</select></label><Pagination total={courses.data.total} offset={courseOffset} limit={25} loading={courses.loading} onPage={idx => { setCourseOffset(idx); setCourseId('') }} /></>}
-        <RecordEditor key={courseId} courseId={courseId} terms={data.terms} onSaved={reload} />
-      </section>
-    </>}
-  </section>
+      </div>
+      <ClassSchedule onNavigate={onNavigate} />
+      <div className="dashboard-activity">
+        <section>
+          <h2>Course suggestions</h2>
+          {roadmap.loading && <p role="status">Loading suggested courses…</p>}
+          {!roadmap.loading && !roadmap.data && <p>{needsMajor ? 'Choose your major to see suggested courses.' : 'Suggested courses are unavailable.'}</p>}
+          {roadmap.data && <CourseSuggestions
+            suggestions={roadmap.data.suggestions}
+            target={roadmap.data.recommendation_limit}
+            onSelect={id => onNavigate?.(roadmap.data?.courses.some(entry => entry.course.id === id) ? 'Roadmap' : 'Search', id)}
+          />}
+          <button onClick={() => onNavigate?.('Roadmap')}>See all on roadmap</button>
+        </section>
+        <section>
+          <h2>Watched sections{watchlist.data && ` (${watchlist.data.total})`}</h2>
+          <ErrorNotice error={watchlist.error} />
+          {watchlist.loading && <p role="status">Loading watched sections…</p>}
+          {watchlist.data && (watchlist.data.items.length > 0 ? (
+            <ul>{watchlist.data.items.map(({ section }) => (
+              <li key={section.id}>
+                <button className="dashboard-item" onClick={() => onNavigate?.('Watchlist', section.id)}>
+                  <strong>{section.course.id}</strong> · Section {section.section_number} · {section.open_seats === null ? 'Seats unknown' : `${section.open_seats} open`}
+                </button>
+              </li>
+            ))}</ul>
+          ) : <p>You’re currently watching zero sections.</p>)}
+          <button onClick={() => onNavigate?.(watchlist.data?.total === 0 ? 'Search' : 'Watchlist')}>
+            {watchlist.data?.total === 0 ? 'Find a section' : 'Open watchlist'}
+          </button>
+        </section>
+      </div>
+    </section>
+  )
 }

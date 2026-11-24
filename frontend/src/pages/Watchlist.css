@@ -1,2 +1,60 @@
-/* - Use .watchlist-page for saved sections, settings and history. Keep pending/error states next to the affected row. */
-/* - Stack panels on narrow screens; labels, focus and contrast must remain readable. */
+.watchlist-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(300px, 1.1fr);
+  gap: 32px;
+  align-items: start;
+}
+
+.watchlist-layout > div > label:first-of-type {
+  max-width: 260px;
+}
+
+.watchlist-layout > div > h2 {
+  margin: 24px 0 16px;
+}
+
+.watchlist-layout aside {
+  border-left: 1px solid var(--border);
+  padding-left: 24px;
+  min-width: 0;
+}
+
+.watchlist-layout aside h2 {
+  margin: 0;
+}
+
+.notification-history .results-heading {
+  margin: 0 0 10px 0;
+}
+
+.notification-history .results-heading button {
+  min-height: 30px;
+  padding: 4px 10px;
+  font-size: var(--font-meta);
+}
+
+.watchlist-layout aside .empty {
+  padding-block: 12px;
+  margin-block: 8px 0;
+}
+
+.watchlist-layout aside p {
+  font-size: var(--font-meta);
+  color: var(--text-secondary);
+}
+
+.watchlist-layout .section-facts {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 900px) {
+  .watchlist-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .watchlist-layout aside {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+    padding: 18px 0 0;
+  }
+}

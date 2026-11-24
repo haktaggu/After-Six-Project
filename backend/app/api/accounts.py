@@ -4,7 +4,7 @@ import os
 from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Request, Response
 from app.api.common import DatabaseDep, StudentDep, require_csrf, SESSION_COOKIE, CSRF_COOKIE
-from app.schemas import CourseRecord, CourseRecordInput, CsrfResponse, LoginRequest, Page, PaginationQuery, ProfileResponse, ProfileUpdate, SessionResponse
+from app.schemas import CalendarCourse, CourseRecord, CourseRecordInput, CsrfResponse, LoginRequest, Page, PaginationQuery, ProfileResponse, ProfileUpdate, SessionResponse, SignupRequest
 from app.features import auth, profiles
 
 router = APIRouter(prefix="/api")
@@ -13,15 +13,24 @@ def cookie_secure() -> bool:
     return os.environ.get("COOKIE_SECURE", "false").lower() == "true"
 
 @router.get("/auth/csrf", response_model=CsrfResponse)
-def csrf(response: Response) -> CsrfResponse:
-    token = auth.issue_csrf_token()
+def csrf(response: Response, db: DatabaseDep) -> CsrfResponse:
+    token = auth.issue_csrf_token(db)
     response.set_cookie(CSRF_COOKIE, token, httponly=True, secure=cookie_secure(), samesite="lax", max_age=28800, path="/")
     return CsrfResponse(csrf_token=token)
 
-@router.post("/auth/login", response_model=SessionResponse, dependencies=[Depends(require_csrf)])
+def require_login_csrf(request: Request, db: DatabaseDep) -> None:
+    auth.validate_csrf_token(db, request.headers.get("X-CSRF-Token"), request.cookies.get(CSRF_COOKIE))
+
+@router.post("/auth/login", response_model=SessionResponse, dependencies=[Depends(require_login_csrf)])
 def login(body: LoginRequest, db: DatabaseDep, response: Response) -> SessionResponse:
-    user = auth.authenticate_user(db, body)
-    grant = auth.create_session(db, user.id)
+    return start_session(db, auth.authenticate_user(db, body).id, response)
+
+@router.post("/auth/signup", status_code=201, response_model=SessionResponse, dependencies=[Depends(require_login_csrf)])
+def signup(body: SignupRequest, db: DatabaseDep, response: Response) -> SessionResponse:
+    return start_session(db, auth.register_user(db, body).id, response)
+
+def start_session(db: DatabaseDep, user_id: str, response: Response) -> SessionResponse:
+    grant = auth.create_session(db, user_id)
     response.set_cookie(SESSION_COOKIE, grant.cookie_token, httponly=True, secure=cookie_secure(), samesite="lax", max_age=28800, path="/")
     return grant.identity.response
 
@@ -48,6 +57,10 @@ def patch_profile(body: ProfileUpdate, db: DatabaseDep, student: StudentDep) -> 
 @router.get("/me/course-records", response_model=Page[CourseRecord])
 def course_records(db: DatabaseDep, student: StudentDep, query: Annotated[PaginationQuery, Query()]) -> Page[CourseRecord]:
     return profiles.list_course_records(db, student, query.limit, query.offset)
+
+@router.get("/me/course-calendar", response_model=list[CalendarCourse])
+def course_calendar(db: DatabaseDep, student: StudentDep) -> list[CalendarCourse]:
+    return profiles.get_calendar(db, student)
 
 @router.put("/me/course-records/{course_id}", response_model=CourseRecord, responses={201: {"description": "Created"}}, dependencies=[Depends(require_csrf)])
 def put_record(course_id: str, body: CourseRecordInput, db: DatabaseDep, student: StudentDep, response: Response) -> CourseRecord:

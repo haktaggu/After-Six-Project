@@ -26,7 +26,19 @@ export default function Header({ selectedPage, onNavigate, user, onSignOut, sign
         </nav>
         <div className="auth-actions">
           {user ? (
-            <button type="button" disabled={signingOut || !onSignOut} onClick={onSignOut}>{signingOut ? 'Logging out…' : 'Logout'}</button>
+            <>
+              <button
+                type="button"
+                disabled={signingOut}
+                aria-current={selectedPage === 'Profile' ? 'page' : undefined}
+                onClick={() => onNavigate('Profile')}
+              >
+                Profile
+              </button>
+              <button type="button" disabled={signingOut || !onSignOut} onClick={onSignOut}>
+                {signingOut ? 'Logging out…' : 'Logout'}
+              </button>
+            </>
           ) : (
             <button type="button" disabled aria-current={selectedPage === 'Login' ? 'page' : undefined}>Sign in</button>
           )}

@@ -8,23 +8,10 @@ from app.db.connection import connect, database_path, init_db
 from app.errors import ApiProblem
 from app.features import notifications
 from app.jobs.locking import exclusive_worker, WorkerAlreadyRunning
-from app.schemas import DeliveryTarget, SeatOpeningEvent
 
 def send_notifications(path: Path) -> int:
     with closing(connect(path)) as db:
-        rows = db.execute('SELECT id,section_id,previous_seats,new_seats,detected_at FROM availability_events WHERE processed_at IS NULL ORDER BY detected_at,id').fetchall()
-        for row in rows:
-            event = SeatOpeningEvent(**dict(zip(('id', 'section_id', 'previous_seats', 'new_seats', 'detected_at'), row)))
-            notifications.dispatch_opening_event(db, event)
-        rows = db.execute("SELECT id,event_id,student_id,section_id,message FROM notification_logs WHERE status='pending' ORDER BY created_at,id").fetchall()
-        for row in rows:
-            target = DeliveryTarget(**dict(zip(('delivery_id', 'event_id', 'student_id', 'section_id', 'message'), row)))
-            try:
-                notifications.deliver_notification(db, target)
-            except Exception:
-                with db:
-                    db.execute("UPDATE notification_logs SET status='failed',sent_at=NULL,last_error='DELIVERY_ERROR' WHERE id=? AND status='pending'", (target.delivery_id,))
-        return len(rows)
+        return notifications.process_notifications(db)
 
 
 def main() -> None:

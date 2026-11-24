@@ -12,10 +12,10 @@ from typing import Callable
 from app.db.connection import database_path, init_db
 from app.errors import ApiProblem
 from app.jobs.locking import exclusive_worker, WorkerAlreadyRunning
-from app.jobs.refresh_catalog import refresh_catalog
+from app.features.ingest import SourceUnavailable
+from app.jobs.refresh_catalog_browser import refresh_catalog_with_browser
 from app.jobs.refresh_sections import refresh_sections
 from app.jobs.send_notifications import send_notifications
-from scripts.seed import seed_demo_account, seed_demo_courses
 
 log = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ class JobRunner:
         self.path = path
         self.settings = settings
         self.clock = clock
-        self.due = {'catalog': 0.0, 'demo setup': 0.0, 'sections': 0.0, 'notifications': 0.0}
+        self.due = {'catalog': 0.0, 'sections': 0.0, 'notifications': 0.0}
         self.problems: dict[str, str] = {}
 
     def run_job(self, name: str, action: Callable[[], object]) -> bool:
@@ -63,6 +63,8 @@ class JobRunner:
         except Exception as exc:
             if isinstance(exc, ApiProblem):
                 problem = exc.code
+            elif isinstance(exc, SourceUnavailable) or (name == 'catalog' and isinstance(exc, ValueError)):
+                problem = str(exc)
             else:
                 problem = type(exc).__name__
             if self.problems.get(name) != problem:
@@ -70,32 +72,14 @@ class JobRunner:
                 self.problems[name] = problem
             return False
         self.problems.pop(name, None)
-        if name != 'demo setup':
-            log.info('%s completed.', name)
+        log.info('%s completed.', name)
         return True
-
-    def seed_courses(self) -> None:
-        result = seed_demo_courses(self.path)
-        if result.missing_course_ids:
-            missing = ', '.join(result.missing_course_ids)
-            if self.problems.get('demo courses') != missing:
-                log.warning('Computer Engineering demo is waiting for imported courses: %s.', missing)
-                self.problems['demo courses'] = missing
-        else:
-            if 'demo courses' in self.problems or result.history_created:
-                log.info('Computer Engineering roadmap and initial history are ready.')
-            self.problems.pop('demo courses', None)
 
     def tick(self, stop: Event) -> None:
         if not stop.is_set() and self.clock() >= self.due['catalog']:
-            ok = self.run_job('catalog', lambda: refresh_catalog(self.path))
+            ok = self.run_job('catalog', lambda: refresh_catalog_with_browser(self.path))
             delay = self.settings.catalog_seconds if ok else min(300, self.settings.catalog_seconds)
             self.due['catalog'] = self.clock() + delay
-            if ok:
-                self.due['demo setup'] = 0.0
-        if not stop.is_set() and self.clock() >= self.due['demo setup']:
-            self.run_job('demo setup', self.seed_courses)
-            self.due['demo setup'] = self.clock() + min(300, self.settings.schedule_seconds)
         if not stop.is_set() and self.clock() >= self.due['sections']:
             ok = self.run_job('sections', lambda: refresh_sections(self.path, self.settings.term))
             self.due['sections'] = self.clock() + self.settings.schedule_seconds
@@ -122,7 +106,6 @@ def main() -> None:
         path = database_path()
         init_db(path)
         with exclusive_worker(path):
-            seed_demo_account(path)
             log.info('Automatic jobs started: catalog=%ss, sections=%ss, notifications=%ss, term=%s.',
                      settings.catalog_seconds, settings.schedule_seconds, settings.notification_seconds, settings.term)
             JobRunner(path, settings).run(stop)

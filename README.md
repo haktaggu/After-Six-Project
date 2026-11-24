@@ -4,15 +4,9 @@
 
 ## Getting Started
 
-Install and open [Docker Desktop](https://www.docker.com/products/docker-desktop/). From the project root, run:
-
-```sh
-docker compose up --build
-```
+Run `docker compose up -d --build` from the project root, then create an account on the sign-in page.
 
 - Frontend: http://localhost:5173
-    - Username: demo@oursjsu.test
-    - Password: oursjsu-demo-password
 - API docs: http://localhost:8000/docs
 
 ## Important Directories
@@ -20,4 +14,3 @@ docker compose up --build
 - `frontend/src/` — interface and styles.
 - `backend/app/api/` — API endpoints.
 - `backend/app/features/` — feature logic.
-

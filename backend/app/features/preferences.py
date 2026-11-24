@@ -1,21 +1,27 @@
 from __future__ import annotations
 
 from app.errors import ApiProblem
+from app.features import notification_providers
 from app.features.notifications import discord_available
 from app.schemas import AuthenticatedStudent, Database, Notification, NotificationPreferences, Page, PreferencesUpdate
 
 
 def get_preferences(db: Database, student: AuthenticatedStudent) -> NotificationPreferences:
-    row = db.execute('SELECT enabled FROM notification_preferences WHERE student_id=?', (student.student_id,)).fetchone()
-    return NotificationPreferences(enabled=bool(row and row[0]), available=discord_available())
+    row = db.execute('SELECT enabled, webhook_url FROM notification_preferences WHERE student_id=?', (student.student_id,)).fetchone()
+    webhook = row[1] if row and len(row) > 1 else None
+    return NotificationPreferences(enabled=bool(row and row[0]), available=True, webhook_url=webhook)
 
 
 def update_preferences(db: Database, student: AuthenticatedStudent, body: PreferencesUpdate) -> NotificationPreferences:
-    if body.enabled and not discord_available():
-        raise ApiProblem(503, 'CHANNEL_UNAVAILABLE', 'Discord alerts are not configured. You can still save watches.')
+    webhook = (body.webhook_url or '').strip() or None
+    if webhook and not notification_providers.valid_destination(webhook):
+        raise ApiProblem(422, 'VALIDATION_ERROR', 'Please enter a valid Discord webhook URL (e.g. https://discord.com/api/webhooks/...)')
+    if body.enabled and not webhook and not discord_available():
+        raise ApiProblem(422, 'VALIDATION_ERROR', 'Please enter a Discord webhook URL to enable Discord alerts.')
     with db:
-        db.execute('INSERT INTO notification_preferences (student_id,enabled) VALUES (?,?) '
-                   'ON CONFLICT(student_id) DO UPDATE SET enabled=excluded.enabled', (student.student_id, int(body.enabled)))
+        db.execute('INSERT INTO notification_preferences (student_id,enabled,webhook_url) VALUES (?,?,?) '
+                   'ON CONFLICT(student_id) DO UPDATE SET enabled=excluded.enabled, webhook_url=excluded.webhook_url',
+                   (student.student_id, int(body.enabled), webhook))
     return get_preferences(db, student)
 
 

@@ -12,3 +12,7 @@ export function updatePreferences(body: PreferencesUpdate): Promise<Notification
 export function listNotifications(query: PaginationQuery = {}): Promise<Page<Notification>> {
   return apiRequest<Page<Notification>>('/me/notifications' + queryString(query))
 }
+
+export function markNotificationRead(id: string): Promise<void> {
+  return apiRequest<void>(`/me/notifications/${encodeURIComponent(id)}/read`, { method: 'PATCH' })
+}

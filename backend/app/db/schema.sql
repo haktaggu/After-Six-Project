@@ -7,6 +7,11 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS session_signing_key (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    secret BLOB NOT NULL CHECK (length(secret) >= 32)
+);
+
 CREATE TABLE IF NOT EXISTS sessions (
     token TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
@@ -24,6 +29,8 @@ CREATE TABLE IF NOT EXISTS student_profiles (
         CHECK (standing IN ('freshman', 'sophomore', 'junior', 'senior', 'graduate', 'unspecified')),
     gpa REAL CHECK (gpa >= 0 AND gpa <= 4),
     earned_units INTEGER CHECK (earned_units IS NULL OR (earned_units >= 0 AND typeof(earned_units) = 'integer')),
+    recommendation_limit INTEGER NOT NULL DEFAULT 4
+        CHECK (typeof(recommendation_limit) = 'integer' AND recommendation_limit BETWEEN 1 AND 5),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (major) REFERENCES major_roadmaps(major_code)
 );
@@ -42,11 +49,6 @@ CREATE TABLE IF NOT EXISTS student_course_attempts (
     UNIQUE (student_id, course_id)
 );
 
-CREATE TABLE IF NOT EXISTS demo_seed_state (
-    name TEXT PRIMARY KEY,
-    completed_at TEXT NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS courses (
     id TEXT PRIMARY KEY,
     subject TEXT NOT NULL,
@@ -60,6 +62,19 @@ CREATE TABLE IF NOT EXISTS courses (
     restrictions_text TEXT,
     prerequisite_rule_json TEXT,
     catalog_url TEXT
+);
+
+CREATE TABLE IF NOT EXISTS student_requirement_confirmations (
+    student_id TEXT NOT NULL REFERENCES student_profiles(student_id) ON DELETE CASCADE,
+    course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    requirement_id TEXT NOT NULL,
+    PRIMARY KEY (student_id, course_id, requirement_id)
+);
+
+CREATE TABLE IF NOT EXISTS course_enrollment_policies (
+    course_id TEXT PRIMARY KEY REFERENCES courses(id) ON DELETE CASCADE,
+    source_url TEXT NOT NULL,
+    rule_json TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS sections (
@@ -90,6 +105,14 @@ CREATE TABLE IF NOT EXISTS meetings (
     FOREIGN KEY (section_id) REFERENCES sections(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS course_attempt_sections (
+    attempt_id INTEGER NOT NULL REFERENCES student_course_attempts(id) ON DELETE CASCADE,
+    section_id TEXT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+    PRIMARY KEY (attempt_id, section_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_course_attempt_sections_section ON course_attempt_sections(section_id);
+
 CREATE TABLE IF NOT EXISTS instructors (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     section_id TEXT NOT NULL,
@@ -115,6 +138,15 @@ CREATE TABLE IF NOT EXISTS roadmap_courses (
     UNIQUE (major_code, course_id)
 );
 
+CREATE TABLE IF NOT EXISTS roadmap_requirements (
+    id INTEGER PRIMARY KEY,
+    major_code TEXT NOT NULL REFERENCES major_roadmaps(major_code) ON DELETE CASCADE,
+    term_order INTEGER NOT NULL CHECK (term_order >= 1),
+    label TEXT NOT NULL,
+    units INTEGER,
+    flexible INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS watchlists (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     student_id TEXT NOT NULL,
@@ -130,6 +162,7 @@ CREATE TABLE IF NOT EXISTS watchlists (
 CREATE TABLE IF NOT EXISTS notification_preferences (
     student_id TEXT PRIMARY KEY,
     enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
+    webhook_url TEXT,
     FOREIGN KEY (student_id) REFERENCES student_profiles(student_id) ON DELETE CASCADE
 );
 

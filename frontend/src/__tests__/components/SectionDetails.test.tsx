@@ -3,9 +3,7 @@ import { render, screen, cleanup } from '@testing-library/react'
 import SectionDetails, { EligibilityDetails } from '../../components/SectionDetails'
 import type { Eligibility, Section } from '../../shared/api/types'
 
-afterEach(() => {
-  cleanup()
-})
+afterEach(cleanup)
 
 const mockSection: Section = {
   id: 'sec-1',
@@ -33,8 +31,8 @@ const mockSection: Section = {
   meetings: [
     {
       days: ['tue', 'thu'],
-      start_time: '10:30 AM',
-      end_time: '11:45 AM',
+      start_time: '10:30',
+      end_time: '11:45',
       location: 'ENG 331',
       is_tba: false,
     },
@@ -47,29 +45,17 @@ const mockSection: Section = {
 }
 
 describe('SectionDetails', () => {
-  it('renders section class number and mode', () => {
-    render(<SectionDetails section={mockSection} />)
-    expect(screen.getByText('48201 · In Person')).toBeDefined()
-  })
-
-  it('renders instructor names', () => {
+  it('shows the meeting time, instructor, seats, and notes', () => {
     render(<SectionDetails section={mockSection} />)
     expect(screen.getByText('Dr. Smith')).toBeDefined()
-  })
-
-  it('renders meeting days, times, and room', () => {
-    render(<SectionDetails section={mockSection} />)
-    expect(screen.getByText(/Tue, Thu · 10:30 AM–11:45 AM · ENG 331/)).toBeDefined()
-  })
-
-  it('renders availability status and seat count', () => {
-    render(<SectionDetails section={mockSection} />)
+    expect(screen.getByText('Tue, Thu · 10:30 AM–11:45 AM · ENG 331')).toBeDefined()
     expect(screen.getByText('5 open seats')).toBeDefined()
+    expect(screen.getByText(mockSection.notes!)).toBeDefined()
   })
 
-  it('renders section notes when present', () => {
-    render(<SectionDetails section={mockSection} />)
-    expect(screen.getByText('Class includes mandatory lab attendance.')).toBeDefined()
+  it('hides section notes when showNotes is false', () => {
+    render(<SectionDetails section={mockSection} showNotes={false} />)
+    expect(screen.queryByText('Class includes mandatory lab attendance.')).toBeNull()
   })
 })
 
@@ -82,6 +68,7 @@ describe('EligibilityDetails', () => {
       missing_course_ids: [],
     }
     render(<EligibilityDetails value={value} />)
+    expect(screen.getByText('You meet the prerequisite requirements for this course.')).toBeDefined()
     expect(screen.getByText(/Prerequisites satisfied: CMPE 126/)).toBeDefined()
   })
 
@@ -93,6 +80,7 @@ describe('EligibilityDetails', () => {
       missing_course_ids: ['CMPE-126'],
     }
     render(<EligibilityDetails value={value} />)
+    expect(screen.getByText('You currently do not meet one or more prerequisite requirements.')).toBeDefined()
     expect(screen.getByText('Missing credit: CMPE-126')).toBeDefined()
   })
 })

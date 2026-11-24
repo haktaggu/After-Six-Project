@@ -1,14 +1,13 @@
 .site-footer {
+  width: 100%;
   border-top: 1px solid var(--border);
-  background: var(--surface);
-  padding-block: 28px;
-  text-align: center;
+  padding-block: 18px;
   margin-top: auto;
 }
 
 .site-footer p {
-  margin-inline: auto;
-  font-size: 13px;
+  font-size: var(--font-meta);
   color: var(--text-muted);
-  max-width: 60ch;
+  max-width: none;
+  text-align: center;
 }

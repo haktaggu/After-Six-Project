@@ -19,6 +19,7 @@ coverage/
 *.log
 .DS_Store
 data/
+/demo/
 *.db
 *.db-*
 *.sqlite

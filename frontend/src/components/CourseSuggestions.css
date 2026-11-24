@@ -1,0 +1,29 @@
+.course-suggestions {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+}
+
+.course-suggestions li {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.75rem;
+}
+
+.course-suggestions button {
+  background: transparent;
+  border: 0;
+  padding-inline: 0;
+  color: var(--blue);
+  text-align: left;
+}
+
+.course-suggestions button:hover {
+  text-decoration: underline;
+}
+
+.course-suggestion-detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+}

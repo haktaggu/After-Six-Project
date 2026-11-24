@@ -6,7 +6,6 @@ from fastapi.testclient import TestClient
 
 from app.db.connection import connect
 from app.main import create_app
-from scripts.seed import DEMO_EMAIL, DEMO_PASSWORD, DEMO_STUDENT_ID
 
 def insert_notification(
     path: Path,
@@ -88,8 +87,6 @@ def notification_client(
         "SESSION_SECRET",
         "test-session-secret-that-is-at-least-32-bytes",
     )
-    monkeypatch.setenv("DATA_MODE", "live")
-    monkeypatch.setenv("CATALOG_INPUT", "live")
 
     database_path = tmp_path / "test.db"
     app = create_app(database_path)
@@ -100,20 +97,21 @@ def notification_client(
         login_csrf = csrf_response.json()["csrf_token"]
 
         login_response = client.post(
-            "/api/auth/login",
+            "/api/auth/signup",
             headers={"X-CSRF-Token": login_csrf},
             json={
-                "email": DEMO_EMAIL,
-                "password": DEMO_PASSWORD,
+                "email": "student@example.com",
+                "password": "example-password",
+                "full_name": "Test Student",
             },
         )
-        assert login_response.status_code == 200
+        assert login_response.status_code == 201
         session_csrf = login_response.json()["csrf_token"]
 
         insert_notification(
             database_path,
             "notification-1",
-            DEMO_STUDENT_ID,
+            login_response.json()["user"]["id"],
         )
 
         yield client, database_path, session_csrf
@@ -224,3 +222,44 @@ def test_mark_notification_read_requires_csrf(
 
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "CSRF_FAILED"
+
+def test_get_and_update_preferences_with_webhook(
+    notification_client,
+) -> None:
+    client, _database_path, csrf = notification_client
+
+    # Initial preferences
+    get_res = client.get("/api/me/notification-preferences")
+    assert get_res.status_code == 200
+    assert get_res.json()["enabled"] is False
+    assert get_res.json()["webhook_url"] is None
+
+    # Update with valid webhook
+    webhook = "https://discord.com/api/webhooks/123456789/token_abc-123"
+    update_res = client.patch(
+        "/api/me/notification-preferences",
+        headers={"X-CSRF-Token": csrf},
+        json={"enabled": True, "webhook_url": webhook},
+    )
+    assert update_res.status_code == 200
+    assert update_res.json()["enabled"] is True
+    assert update_res.json()["webhook_url"] == webhook
+
+    # Subsequent GET verifies persistence
+    get_res2 = client.get("/api/me/notification-preferences")
+    assert get_res2.status_code == 200
+    assert get_res2.json()["enabled"] is True
+    assert get_res2.json()["webhook_url"] == webhook
+
+def test_update_preferences_rejects_invalid_webhook(
+    notification_client,
+) -> None:
+    client, _database_path, csrf = notification_client
+
+    response = client.patch(
+        "/api/me/notification-preferences",
+        headers={"X-CSRF-Token": csrf},
+        json={"enabled": False, "webhook_url": "https://malicious.site/webhook"},
+    )
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
